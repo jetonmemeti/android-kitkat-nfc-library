@@ -82,7 +82,8 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 	@Override
 	public byte[] transceive(byte[] bytes) throws IllegalArgumentException {
 		//TODO fragmentation!
-		return write(new NfcMessage((byte) (0x00), (byte) (0x01), bytes)).getPayload();
+		 NfcMessage response = write(new NfcMessage((byte) (0x00), (byte) (0x01), bytes));
+		return response.getPayload();
 	}
 	
 	private NfcMessage write(NfcMessage nfcMessage) throws IllegalArgumentException {
