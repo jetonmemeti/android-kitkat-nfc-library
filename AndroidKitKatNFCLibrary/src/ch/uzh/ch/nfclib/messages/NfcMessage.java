@@ -18,6 +18,7 @@ public class NfcMessage extends ProtocolMessage {
 	public static final byte HAS_MORE_FRAGMENTS = 0x08;
 	public static final byte GET_NEXT_FRAGMENT = 0x10;
 	public static final byte WAIT_FOR_ANSWER = 0x20;
+	public static final byte ERROR = 0x40;
 	
 	public static final int HEADER_LENGTH = 2;
 	
