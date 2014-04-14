@@ -10,8 +10,8 @@ import android.nfc.Tag;
 import android.nfc.tech.IsoDep;
 import android.os.Bundle;
 import android.util.Log;
-import ch.uzh.csg.nfclib.INfcEventListener;
 import ch.uzh.csg.nfclib.NfcEvent;
+import ch.uzh.csg.nfclib.NfcEventHandler;
 import ch.uzh.csg.nfclib.exceptions.NfcNotEnabledException;
 import ch.uzh.csg.nfclib.exceptions.NoNfcException;
 import ch.uzh.csg.nfclib.exceptions.TransceiveException;
@@ -35,8 +35,8 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 	private NfcMessageSplitter messageSplitter;
 	private NfcMessageReassembler messageReassembler;
 	
-	public InternalNfcTransceiver(INfcEventListener nfcEventListener) {
-		super(nfcEventListener);
+	public InternalNfcTransceiver(NfcEventHandler eventHandler) {
+		super(eventHandler);
 		messageSplitter = new NfcMessageSplitter(MAX_WRITE_LENGTH);
 		messageReassembler = new NfcMessageReassembler();
 	}
@@ -77,7 +77,7 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 			isoDep.connect();
 			initNfc();
 		} catch (IOException e) {
-			getNfcEventListener().notify(NfcEvent.NFC_INIT_FAILED, null);
+			getNfcEventHandler().handleMessage(NfcEvent.NFC_INIT_FAILED, null);
 			Log.e(TAG, "Could not connnect isodep", e);
 		}
 	}
@@ -101,9 +101,18 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 				throw new TransceiveException("error occured while transceiving a message");
 			}
 			
-			messageReassembler.handleReassembly(response);
+			if (response.getStatus() == NfcMessage.ERROR) {
+				getNfcEventHandler().handleMessage(NfcEvent.NFC_ERROR_REPORTED, null);
+				return null;
+			}
 			
-//			boolean continueWithNext = (response.getStatus() & NfcMessage.GET_NEXT_FRAGMENT) == NfcMessage.GET_NEXT_FRAGMENT;
+			boolean sendNext = (response.getStatus() & NfcMessage.GET_NEXT_FRAGMENT) == NfcMessage.GET_NEXT_FRAGMENT;
+			
+			if (sendNext) {
+				continue;
+			} else {
+				messageReassembler.handleReassembly(response);
+			}
 		}
 		
 		return messageReassembler.getData();
@@ -123,7 +132,7 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 				return new NfcMessage(isoDep.transceive(nfcMessage.getData()));
 			} catch (IOException e) {
 				Log.d(TAG, "could not write message", e);
-				throw new TransceiveException("could not write message"+e.getMessage());
+				throw new TransceiveException("could not write message: "+e.getMessage());
 			}
 		} else {
 			Log.d(TAG, "could not write message, isodep is no longer connected");

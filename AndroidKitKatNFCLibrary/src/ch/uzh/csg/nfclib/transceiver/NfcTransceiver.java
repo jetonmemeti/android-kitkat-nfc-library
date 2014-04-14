@@ -4,8 +4,8 @@ import java.io.IOException;
 
 import android.app.Activity;
 import android.util.Log;
-import ch.uzh.csg.nfclib.INfcEventListener;
 import ch.uzh.csg.nfclib.NfcEvent;
+import ch.uzh.csg.nfclib.NfcEventHandler;
 import ch.uzh.csg.nfclib.exceptions.NfcNotEnabledException;
 import ch.uzh.csg.nfclib.exceptions.NoNfcException;
 import ch.uzh.csg.nfclib.exceptions.TransceiveException;
@@ -17,10 +17,10 @@ public abstract class NfcTransceiver {
 	private static final String TAG = "NfcTransceiver";
 	
 	private boolean enabled = false;
-	private INfcEventListener nfcEventListener;
+	private NfcEventHandler eventHandler;
 	
-	public NfcTransceiver(INfcEventListener nfcEventListener) {
-		this.nfcEventListener = nfcEventListener;
+	public NfcTransceiver(NfcEventHandler eventHandler) {
+		this.eventHandler = eventHandler;
 	}
 	
 	public abstract void enable(Activity activity) throws NoNfcException, NfcNotEnabledException;
@@ -53,10 +53,10 @@ public abstract class NfcTransceiver {
 		NfcMessage msg = new NfcMessage(response);
 		if (msg.getStatus() == NfcMessage.AID_SELECTED) {
 			//HostApduService recognized the AID
-			nfcEventListener.notify(NfcEvent.NFC_INITIALIZED, null);
+			eventHandler.handleMessage(NfcEvent.NFC_INITIALIZED, null);
 		} else {
 			Log.d(TAG, "apdu response is not as expected!");
-			nfcEventListener.notify(NfcEvent.NFC_INIT_FAILED, null);
+			eventHandler.handleMessage(NfcEvent.NFC_INIT_FAILED, null);
 		}
 	}
 	
@@ -68,8 +68,8 @@ public abstract class NfcTransceiver {
 		this.enabled = enabled;
 	}
 	
-	protected INfcEventListener getNfcEventListener() {
-		return nfcEventListener;
+	protected NfcEventHandler getNfcEventHandler() {
+		return eventHandler;
 	}
 	
 }
