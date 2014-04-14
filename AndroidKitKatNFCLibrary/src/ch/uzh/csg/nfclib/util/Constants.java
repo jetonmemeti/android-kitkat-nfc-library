@@ -1,4 +1,4 @@
-package ch.uzh.ch.nfclib.util;
+package ch.uzh.csg.nfclib.util;
 
 public class Constants {
 	

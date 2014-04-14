@@ -1,4 +1,4 @@
-package ch.uzh.ch.nfclib.messages;
+package ch.uzh.csg.nfclib.messages;
 
 
 /**
@@ -12,6 +12,7 @@ package ch.uzh.ch.nfclib.messages;
  */
 public class NfcMessage extends ProtocolMessage {
 	
+	public static final byte DEFAULT = 0x00;
 	public static final byte AID_SELECTED =	0x01;
 	public static final byte START_PROTOCOL = 0x02;
 	public static final byte RETRANSMIT = 0x03;

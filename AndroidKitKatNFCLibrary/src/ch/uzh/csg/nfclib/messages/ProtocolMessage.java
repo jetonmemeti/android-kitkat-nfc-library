@@ -1,4 +1,4 @@
-package ch.uzh.ch.nfclib.messages;
+package ch.uzh.csg.nfclib.messages;
 
 import org.apache.commons.lang3.ArrayUtils;
 
@@ -22,7 +22,7 @@ public abstract class ProtocolMessage {
 	 * returned.
 	 */
 	public byte getStatus() {
-		if (data == null)
+		if (data == null || data.length == 0)
 			return (byte) 0xFF;
 		else
 			return data[0];
@@ -65,7 +65,7 @@ public abstract class ProtocolMessage {
 	 * Returns the payload only (excluding the header) or null.
 	 */
 	public byte[] getPayload() {
-		if (data == null)
+		if (data == null || data.length <= headerLength)
 			return null;
 		else
 			return ArrayUtils.subarray(data, headerLength, data.length);
@@ -75,7 +75,7 @@ public abstract class ProtocolMessage {
 	 * Returns the length of the payload.
 	 */
 	public int getPayloadLength() {
-		if (data == null || data.length == 0)
+		if (data == null || data.length <= headerLength)
 			return 0;
 		else
 			return data.length-headerLength; 

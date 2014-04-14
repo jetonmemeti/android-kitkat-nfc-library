@@ -1,4 +1,4 @@
-package ch.uzh.ch.nfclib.transceiver;
+package ch.uzh.csg.nfclib.transceiver;
 
 public class ExternalNfcTransceiver {
 

@@ -1,4 +1,4 @@
-package ch.uzh.ch.nfclib;
+package ch.uzh.csg.nfclib;
 
 public enum NfcEvent {
 	NFC_INIT_FAILED,

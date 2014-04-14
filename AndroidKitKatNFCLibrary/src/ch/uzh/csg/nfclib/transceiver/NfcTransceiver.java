@@ -1,15 +1,16 @@
-package ch.uzh.ch.nfclib.transceiver;
+package ch.uzh.csg.nfclib.transceiver;
 
 import java.io.IOException;
 
 import android.app.Activity;
 import android.util.Log;
-import ch.uzh.ch.nfclib.INfcEventListener;
-import ch.uzh.ch.nfclib.NfcEvent;
-import ch.uzh.ch.nfclib.exceptions.NfcNotEnabledException;
-import ch.uzh.ch.nfclib.exceptions.NoNfcException;
-import ch.uzh.ch.nfclib.messages.NfcMessage;
-import ch.uzh.ch.nfclib.util.Constants;
+import ch.uzh.csg.nfclib.INfcEventListener;
+import ch.uzh.csg.nfclib.NfcEvent;
+import ch.uzh.csg.nfclib.exceptions.NfcNotEnabledException;
+import ch.uzh.csg.nfclib.exceptions.NoNfcException;
+import ch.uzh.csg.nfclib.exceptions.TransceiveException;
+import ch.uzh.csg.nfclib.messages.NfcMessage;
+import ch.uzh.csg.nfclib.util.Constants;
 
 //TODO: javadoc
 public abstract class NfcTransceiver {
@@ -28,7 +29,7 @@ public abstract class NfcTransceiver {
 	
 	protected abstract void initNfc() throws IOException;
 	
-	public abstract byte[] transceive(byte[] bytes) throws IllegalArgumentException;
+	public abstract byte[] transceive(byte[] bytes) throws IllegalArgumentException, TransceiveException;
 	
 //	public abstract void reset();
 //	

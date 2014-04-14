@@ -1,11 +1,11 @@
-package ch.uzh.ch.nfclib;
+package ch.uzh.csg.nfclib;
 
 import android.app.Activity;
 import android.nfc.cardemulation.HostApduService;
 import android.os.Bundle;
 import android.util.Log;
-import ch.uzh.ch.nfclib.messages.NfcMessage;
-import ch.uzh.ch.nfclib.util.Constants;
+import ch.uzh.csg.nfclib.messages.NfcMessage;
+import ch.uzh.csg.nfclib.util.Constants;
 
 public class CustomHostApduService extends HostApduService {
 	
