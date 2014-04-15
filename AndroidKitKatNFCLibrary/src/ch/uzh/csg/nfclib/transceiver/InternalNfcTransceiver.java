@@ -111,56 +111,52 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 		ArrayList<NfcMessage> list = messageSplitter.getFragments(bytes);
 		Log.d(TAG, "writing: " + bytes.length + " bytes, " + list.size() + " fragments");
 		
-		//TODO: refactor! duplicated code!
-		//TODO: delete logs!
 		for (NfcMessage nfcMessage : list) {
 			NfcMessage response = write(nfcMessage);
-			if (response.getData().length < NfcMessage.HEADER_LENGTH) {
-				Log.e(TAG, "error occured while transceiving a message");
-				throw new TransceiveException(UNEXPECTED_ERROR);
-			}
-			
-			if (response.getStatus() == NfcMessage.ERROR) {
-				Log.d(TAG, "nfc error reported - returning null");
-				getNfcEventHandler().handleMessage(NfcEvent.NFC_ERROR_REPORTED, null);
+			if (responseIncorrect(response))
 				return null;
-			}
 			
-			boolean sendNext = (response.getStatus() & NfcMessage.GET_NEXT_FRAGMENT) == NfcMessage.GET_NEXT_FRAGMENT;
-			Log.d(TAG, "status: "+response.getStatus());
-			
-			if (sendNext) {
-				Log.d(TAG, "sending next fragment");
+			if (requestsNextFragment(response.getStatus())) {
+				Log.i(TAG, "sending next fragment");
 				continue;
 			} else {
-				Log.d(TAG, "else branch");
 				messageReassembler.handleReassembly(response);
-				boolean hasMore = (response.getStatus() & NfcMessage.HAS_MORE_FRAGMENTS) == NfcMessage.HAS_MORE_FRAGMENTS;
-				while (hasMore) {
-					Log.d(TAG, "has more fragments to return");
+				while (hasMoreFragments(response.getStatus())) {
 					response = write(new NfcMessage(NfcMessage.GET_NEXT_FRAGMENT, (byte) 0x00, null));
-					
-					if (response.getData().length < NfcMessage.HEADER_LENGTH) {
-						Log.e(TAG, "error occured while transceiving a message");
-						throw new TransceiveException(UNEXPECTED_ERROR);
-					}
-					
-					if (response.getStatus() == NfcMessage.ERROR) {
-						Log.d(TAG, "nfc error send!");
-						getNfcEventHandler().handleMessage(NfcEvent.NFC_ERROR_REPORTED, null);
+					if (responseIncorrect(response))
 						return null;
-					}
 					
 					messageReassembler.handleReassembly(response);
-					
-					hasMore = (response.getStatus() & NfcMessage.HAS_MORE_FRAGMENTS) == NfcMessage.HAS_MORE_FRAGMENTS;
 				}
 			}
 		}
 		
 		return messageReassembler.getData();
 	}
+
+	private boolean responseIncorrect(NfcMessage response) throws TransceiveException {
+		if (response.getData().length < NfcMessage.HEADER_LENGTH) {
+			Log.e(TAG, "error occured while transceiving a message");
+			throw new TransceiveException(UNEXPECTED_ERROR);
+		}
+		
+		if (response.getStatus() == NfcMessage.ERROR) {
+			Log.d(TAG, "nfc error reported - returning null");
+			getNfcEventHandler().handleMessage(NfcEvent.NFC_ERROR_REPORTED, null);
+			return true;
+		}
+		
+		return false;
+	}
 	
+	private boolean requestsNextFragment(byte status) {
+		return (status & NfcMessage.GET_NEXT_FRAGMENT) == NfcMessage.GET_NEXT_FRAGMENT;
+	}
+	
+	private boolean hasMoreFragments(byte status) {
+		return (status & NfcMessage.HAS_MORE_FRAGMENTS) == NfcMessage.HAS_MORE_FRAGMENTS;
+	}
+
 	private NfcMessage write(NfcMessage nfcMessage) throws IllegalArgumentException, TransceiveException {
 		if (isEnabled() && isoDep.isConnected()) {
 			if (nfcMessage == null) {
