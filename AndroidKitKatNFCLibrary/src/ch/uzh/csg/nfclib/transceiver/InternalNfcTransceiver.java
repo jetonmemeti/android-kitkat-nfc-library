@@ -7,7 +7,6 @@ import android.app.Activity;
 import android.nfc.NfcAdapter;
 import android.nfc.NfcAdapter.ReaderCallback;
 import android.nfc.Tag;
-import android.nfc.tech.IsoDep;
 import android.os.Bundle;
 import android.util.Log;
 import ch.uzh.csg.nfclib.NfcEvent;
@@ -30,7 +29,7 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 	private static final int MAX_WRITE_LENGTH = 245;
 	
 	private NfcAdapter nfcAdapter;
-	private IsoDep isoDep;
+	private CustomIsoDep isoDep;
 	
 	private NfcMessageSplitter messageSplitter;
 	private NfcMessageReassembler messageReassembler;
@@ -60,6 +59,7 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 		 */
 		nfcAdapter.enableReaderMode(activity, this, NfcAdapter.FLAG_READER_NFC_A | NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK, new Bundle());
 		setEnabled(true);
+		isoDep = new CustomIsoDep();
 	}
 
 	@Override
@@ -72,7 +72,7 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 	}
 
 	public void onTagDiscovered(Tag tag) {
-		isoDep = IsoDep.get(tag);
+		isoDep.init(tag);
 		try {
 			isoDep.connect();
 			initNfc();
