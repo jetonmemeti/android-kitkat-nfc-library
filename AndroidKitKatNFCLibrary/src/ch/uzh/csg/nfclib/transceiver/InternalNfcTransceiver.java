@@ -23,11 +23,15 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 	
 	private static final String TAG = "InternalNfcTransceiver";
 	
+	public static final String NULL_ARGUMENT = "The message is null";
+	public static final String ISODEP_NOT_CONNECTED = "could not write message, IsoDep is no longer connected";
+	public static final String UNEXPECTED_ERROR = "Unexpected error occured while transceiving a message.";
+	
 	/*
 	 * NXP chip supports max 255 bytes (10 bytes is header of nfc protocol)
 	 */
-	private static final int MAX_WRITE_LENGTH = 245;
-	
+	protected static final int MAX_WRITE_LENGTH = 245;
+
 	private NfcAdapter nfcAdapter;
 	private CustomIsoDep isoDep;
 	
@@ -38,6 +42,17 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 		super(eventHandler);
 		messageSplitter = new NfcMessageSplitter(MAX_WRITE_LENGTH);
 		messageReassembler = new NfcMessageReassembler();
+		isoDep = new CustomIsoDep();
+	}
+	
+	/*
+	 * This constructor is only for test purposes, in order to mock the IsoDep.
+	 * For productive use please use the constructor above, otherwise the NFC
+	 * will not work.
+	 */
+	protected InternalNfcTransceiver(NfcEventHandler eventHandler, CustomIsoDep isoDep) {
+		this(eventHandler);
+		this.isoDep = isoDep;
 	}
 
 	@Override
@@ -59,7 +74,6 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 		 */
 		nfcAdapter.enableReaderMode(activity, this, NfcAdapter.FLAG_READER_NFC_A | NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK, new Bundle());
 		setEnabled(true);
-		isoDep = new CustomIsoDep();
 	}
 
 	@Override
@@ -90,28 +104,57 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 
 	@Override
 	public synchronized byte[] transceive(byte[] bytes) throws IllegalArgumentException, TransceiveException {
+		if (bytes == null || bytes.length == 0)
+			throw new IllegalArgumentException(NULL_ARGUMENT);
+		
 		messageReassembler.clear();
 		ArrayList<NfcMessage> list = messageSplitter.getFragments(bytes);
 		Log.d(TAG, "writing: " + bytes.length + " bytes, " + list.size() + " fragments");
 		
+		//TODO: refactor! duplicated code!
+		//TODO: delete logs!
 		for (NfcMessage nfcMessage : list) {
 			NfcMessage response = write(nfcMessage);
-			if (response == null || response.getData().length < NfcMessage.HEADER_LENGTH) {
+			if (response.getData().length < NfcMessage.HEADER_LENGTH) {
 				Log.e(TAG, "error occured while transceiving a message");
-				throw new TransceiveException("error occured while transceiving a message");
+				throw new TransceiveException(UNEXPECTED_ERROR);
 			}
 			
 			if (response.getStatus() == NfcMessage.ERROR) {
+				Log.d(TAG, "nfc error reported - returning null");
 				getNfcEventHandler().handleMessage(NfcEvent.NFC_ERROR_REPORTED, null);
 				return null;
 			}
 			
 			boolean sendNext = (response.getStatus() & NfcMessage.GET_NEXT_FRAGMENT) == NfcMessage.GET_NEXT_FRAGMENT;
+			Log.d(TAG, "status: "+response.getStatus());
 			
 			if (sendNext) {
+				Log.d(TAG, "sending next fragment");
 				continue;
 			} else {
+				Log.d(TAG, "else branch");
 				messageReassembler.handleReassembly(response);
+				boolean hasMore = (response.getStatus() & NfcMessage.HAS_MORE_FRAGMENTS) == NfcMessage.HAS_MORE_FRAGMENTS;
+				while (hasMore) {
+					Log.d(TAG, "has more fragments to return");
+					response = write(new NfcMessage(NfcMessage.GET_NEXT_FRAGMENT, (byte) 0x00, null));
+					
+					if (response.getData().length < NfcMessage.HEADER_LENGTH) {
+						Log.e(TAG, "error occured while transceiving a message");
+						throw new TransceiveException(UNEXPECTED_ERROR);
+					}
+					
+					if (response.getStatus() == NfcMessage.ERROR) {
+						Log.d(TAG, "nfc error send!");
+						getNfcEventHandler().handleMessage(NfcEvent.NFC_ERROR_REPORTED, null);
+						return null;
+					}
+					
+					messageReassembler.handleReassembly(response);
+					
+					hasMore = (response.getStatus() & NfcMessage.HAS_MORE_FRAGMENTS) == NfcMessage.HAS_MORE_FRAGMENTS;
+				}
 			}
 		}
 		
@@ -121,7 +164,7 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 	private NfcMessage write(NfcMessage nfcMessage) throws IllegalArgumentException, TransceiveException {
 		if (isEnabled() && isoDep.isConnected()) {
 			if (nfcMessage == null) {
-				throw new IllegalArgumentException("The message is null");
+				throw new IllegalArgumentException(NULL_ARGUMENT);
 			} else if (nfcMessage.getData().length > isoDep.getMaxTransceiveLength()) {
 				throw new IllegalArgumentException("The message length exceeds the maximum capacity of " + isoDep.getMaxTransceiveLength() + " bytes.");
 			} else if (nfcMessage.getData().length > MAX_WRITE_LENGTH) {
@@ -132,11 +175,11 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 				return new NfcMessage(isoDep.transceive(nfcMessage.getData()));
 			} catch (IOException e) {
 				Log.d(TAG, "could not write message", e);
-				throw new TransceiveException("could not write message: "+e.getMessage());
+				throw new TransceiveException("Could not write message: "+e.getMessage());
 			}
 		} else {
 			Log.d(TAG, "could not write message, isodep is no longer connected");
-			throw new TransceiveException("could not write message, isodep is no longer connected");
+			throw new TransceiveException(ISODEP_NOT_CONNECTED);
 		}
 	}
 
