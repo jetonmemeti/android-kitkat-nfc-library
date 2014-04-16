@@ -68,7 +68,10 @@ public class CustomHostApduService extends HostApduService {
 	}
 	
 	private boolean selectAidApdu(byte[] bytes) {
-		return bytes.length >= 2 && bytes[0] == Constants.CLA_INS_P1_P2[0] && bytes[1] == Constants.CLA_INS_P1_P2[1];
+		if (bytes == null || bytes.length < 2)
+			return false;
+		else
+			return bytes[0] == Constants.CLA_INS_P1_P2[0] && bytes[1] == Constants.CLA_INS_P1_P2[1];
 	}
 
 	private NfcMessage getResponse(byte[] bytes) {
