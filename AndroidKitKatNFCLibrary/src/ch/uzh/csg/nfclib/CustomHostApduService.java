@@ -19,7 +19,7 @@ public class CustomHostApduService extends HostApduService {
 	/*
 	 * NXP chip supports max 255 bytes (10 bytes is header of nfc protocol)
 	 */
-	private static final int MAX_WRITE_LENGTH = 245;
+	protected static final int MAX_WRITE_LENGTH = 245;
 	
 	private static Activity hostActivity;
 	private static NfcEventHandler eventHandler;
@@ -79,7 +79,7 @@ public class CustomHostApduService extends HostApduService {
 		}
 		
 		NfcMessage incoming = new NfcMessage(bytes);
-		Log.d(TAG, "rcv msg: "+incoming);
+		Log.d(TAG, "received msg: "+incoming);
 		
 		byte status = (byte) (incoming.getStatus());
 		
@@ -137,6 +137,7 @@ public class CustomHostApduService extends HostApduService {
 
 	@Override
 	public void onDeactivated(int reason) {
+		//TODO: event handler!
 		Log.d(TAG, "deactivated due to " + (reason == HostApduService.DEACTIVATION_LINK_LOSS ? "link loss" : "deselected") + "("+reason+")");
 	}
 
