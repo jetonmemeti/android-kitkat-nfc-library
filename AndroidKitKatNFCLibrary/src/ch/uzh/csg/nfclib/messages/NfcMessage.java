@@ -23,19 +23,7 @@ public class NfcMessage extends ProtocolMessage {
 	
 	public static final int HEADER_LENGTH = 2;
 	
-	/**
-	 * Creates a new NfcMessage out of the given data.
-	 * 
-	 * @param data
-	 *            the byte array containing the NfcMessage header and the
-	 *            payload
-	 * @throws IllegalArgumentException
-	 *             if data.length is less than the header length of NfcMessage
-	 */
-	public NfcMessage(byte[] data) throws IllegalArgumentException {
-		if (data.length < HEADER_LENGTH)
-			throw new IllegalArgumentException();
-		
+	public NfcMessage(byte[] data) {
 		setHeaderLength(HEADER_LENGTH);
 		setData(data);
 	}
@@ -89,7 +77,6 @@ public class NfcMessage extends ProtocolMessage {
 		byte[] data = getData();
 		if (data != null && data.length > 1) {
 			data[1] = sqNr;
-			setData(data);
 		}
 	}
 	
