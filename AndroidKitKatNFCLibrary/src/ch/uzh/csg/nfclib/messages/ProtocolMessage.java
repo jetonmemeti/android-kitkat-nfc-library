@@ -56,8 +56,18 @@ public abstract class ProtocolMessage {
 	
 	/**
 	 * Sets the data, consisting of the header plus payload.
+	 * 
+	 * @param data
+	 *            the new raw data (with the minimum length of the header length
+	 *            of the given type)
+	 * @throws IllegalArgumentException
+	 *             if data is null or does not consist of enough bytes
+	 *             (considering the header of the given type)
 	 */
-	public void setData(byte[] data) {
+	public void setData(byte[] data) throws IllegalArgumentException {
+		if (data == null || data.length < headerLength)
+			throw new IllegalArgumentException();
+			
 		this.data = data;
 	}
 	

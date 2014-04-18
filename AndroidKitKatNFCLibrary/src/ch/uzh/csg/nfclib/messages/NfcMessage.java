@@ -23,7 +23,19 @@ public class NfcMessage extends ProtocolMessage {
 	
 	public static final int HEADER_LENGTH = 2;
 	
-	public NfcMessage(byte[] data) {
+	/**
+	 * Creates a new NfcMessage out of the given data.
+	 * 
+	 * @param data
+	 *            the byte array containing the NfcMessage header and the
+	 *            payload
+	 * @throws IllegalArgumentException
+	 *             if data.length is less than the header length of NfcMessage
+	 */
+	public NfcMessage(byte[] data) throws IllegalArgumentException {
+		if (data.length < HEADER_LENGTH)
+			throw new IllegalArgumentException();
+		
 		setHeaderLength(HEADER_LENGTH);
 		setData(data);
 	}
@@ -64,6 +76,21 @@ public class NfcMessage extends ProtocolMessage {
 			return (byte) 0xFF;
 		else
 			return getData()[1];
+	}
+	
+	/**
+	 * Sets the sequence number of this NfcMessage to the given value (only if
+	 * data is not null and is at least as long as the header length).
+	 * 
+	 * @param sqNr
+	 *            the new sequence number of this NfcMessage
+	 */
+	public void setSequenceNumber(byte sqNr) {
+		byte[] data = getData();
+		if (data != null && data.length > 1) {
+			data[1] = sqNr;
+			setData(data);
+		}
 	}
 	
 	@Override

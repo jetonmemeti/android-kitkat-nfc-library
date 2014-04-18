@@ -25,12 +25,16 @@ public class NfcMessageSplitter {
 	public NfcMessageSplitter(int isoDepMaxTransceiveLength) {
 		payloadLength = isoDepMaxTransceiveLength - NfcMessage.HEADER_LENGTH;
 	}
-	
+
 	/**
 	 * Fragments the payload into a number of NfcMessages so that no NfcMessage
 	 * exceeds the isoDepMaxTransceiveLength. If no fragmentation is needed
 	 * (because the payload does not reach the threshold), then a list
 	 * containing only one NfcMessage is returned.
+	 * 
+	 * The sequence number of the NfcMessages is not set here (all messages in
+	 * the list have the sequence number 0)! It must be set appropriately
+	 * elsewhere.
 	 * 
 	 * @param payload
 	 *            the whole message or byte array to be send by NFC
@@ -45,8 +49,8 @@ public class NfcMessageSplitter {
 			int start = i*payloadLength;
 			byte[] temp = ArrayUtils.subarray(payload, start, start+payloadLength);
 			byte status = (i < (totalNofMessagesToSend-1)) ? NfcMessage.HAS_MORE_FRAGMENTS : NfcMessage.DEFAULT;
-			//TODO: add sequence number
-//			list.add(new NfcMessage(status, SequenceNumberGenerator.getNextSequenceNumber(), temp));
+			// The sequence number which is added here is not important, since
+			// it will be overwritten anyway!
 			list.add(new NfcMessage(status, (byte) 0x00, temp));
 		}
 		
