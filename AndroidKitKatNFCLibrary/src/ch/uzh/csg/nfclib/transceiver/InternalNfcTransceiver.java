@@ -125,7 +125,7 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 		Log.d(TAG, "writing: " + bytes.length + " bytes, " + list.size() + " fragments");
 		
 		for (NfcMessage nfcMessage : list) {
-			NfcMessage response = write(nfcMessage);
+			NfcMessage response = write(nfcMessage, false);
 			
 			if (requestsNextFragment(response.getStatus())) {
 				Log.i(TAG, "sending next fragment");
@@ -136,7 +136,7 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 				messageReassembler.handleReassembly(response);
 				while (hasMoreFragments(response.getStatus())) {
 					NfcMessage toSend = new NfcMessage(NfcMessage.GET_NEXT_FRAGMENT, (byte) 0x00, null);
-					response = write(toSend);
+					response = write(toSend, false);
 					response = retransmitIfRequested(toSend, response);
 					messageReassembler.handleReassembly(response);
 				}
@@ -151,7 +151,7 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 		for (int i=0; i<=MAX_RETRANSMITS; i++) {
 			if (retransmissionRequested(response.getStatus())) {
 				Log.d(TAG, "retransmitting last nfc message since requested");
-				response = write(toSend);
+				response = write(toSend, true);
 			} else {
 				retransmissionSuccess = true;
 			}
@@ -166,8 +166,11 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 		return response;
 	}
 
-	private NfcMessage write(NfcMessage nfcMessage) throws IllegalArgumentException, TransceiveException {
-		lastSqNrSent++;
+	private NfcMessage write(NfcMessage nfcMessage, boolean isRetransmission) throws IllegalArgumentException, TransceiveException {
+		if (!isRetransmission) {
+			lastSqNrSent++;
+		}
+		
 		nfcMessage.setSequenceNumber((byte) lastSqNrSent);
 		
 		NfcMessage response = writeRaw(nfcMessage);
