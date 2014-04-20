@@ -31,6 +31,10 @@ public class CustomHostApduService extends HostApduService {
 	private static ArrayList<NfcMessage> fragments;
 	private static int index = 0;
 	
+	private int lastSqNrReceived;
+	private int lastSqNrSent;
+	private NfcMessage lastMessage;
+	
 	public static void init(Activity activity, NfcEventHandler eventHandler, IMessageHandler messageHandler) {
 		hostActivity = activity;
 		CustomHostApduService.eventHandler = eventHandler;
@@ -60,8 +64,10 @@ public class CustomHostApduService extends HostApduService {
 		if (selectAidApdu(bytes)) {
 			Log.d(TAG, "AID selected");
 			//TODO: decide based on time if to resume or restart!
+			//TODO: appropriately reset seq number references!
 			eventHandler.handleMessage(NfcEvent.NFC_INITIALIZED, null);
-			return new NfcMessage(NfcMessage.AID_SELECTED, (byte) 0x01, new byte[]{NfcMessage.START_PROTOCOL}).getData();
+			//TODO: change payload! combine into status with OR!
+			return new NfcMessage(NfcMessage.AID_SELECTED, (byte) 0x00, new byte[]{NfcMessage.START_PROTOCOL}).getData();
 		}
 		
 		return getResponse(bytes).getData();
@@ -75,6 +81,7 @@ public class CustomHostApduService extends HostApduService {
 	}
 
 	private NfcMessage getResponse(byte[] bytes) {
+		//TODO: request retransmission here? similar in INT!
 		if (bytes == null || bytes.length < NfcMessage.HEADER_LENGTH) {
 			Log.e(TAG, "error occured when receiving message");
 			eventHandler.handleMessage(NfcEvent.NFC_COMMUNICATION_ERROR, null);
@@ -85,6 +92,10 @@ public class CustomHostApduService extends HostApduService {
 		Log.d(TAG, "received msg: "+incoming);
 		
 		byte status = (byte) (incoming.getStatus());
+		
+		
+		//TODO: check sqnr of received msg
+		
 		
 		switch (status) {
 		case NfcMessage.HAS_MORE_FRAGMENTS:

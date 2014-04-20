@@ -31,12 +31,22 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 	 * NXP chip supports max 255 bytes (10 bytes is header of nfc protocol)
 	 */
 	protected static final int MAX_WRITE_LENGTH = 245;
+	
+	/*
+	 * 1 means that a message will be retransmitted at most 1 time if the first
+	 * write failed for some reason (i.e., we got not the sequence number we
+	 * expected)
+	 */
+	private static final int MAX_RETRANSMITS = 1;
 
 	private NfcAdapter nfcAdapter;
 	private CustomIsoDep isoDep;
 	
 	private NfcMessageSplitter messageSplitter;
 	private NfcMessageReassembler messageReassembler;
+	
+	private int lastSqNrReceived;
+	private int lastSqNrSent;
 	
 	public InternalNfcTransceiver(NfcEventHandler eventHandler) {
 		super(eventHandler);
@@ -102,30 +112,32 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 		handleAidApduResponse(response);
 	}
 
+	//TODO: move to base class? can it be reused by external transceiver?
 	@Override
 	public synchronized byte[] transceive(byte[] bytes) throws IllegalArgumentException, TransceiveException {
 		if (bytes == null || bytes.length == 0)
 			throw new IllegalArgumentException(NULL_ARGUMENT);
 		
 		messageReassembler.clear();
+		lastSqNrReceived = lastSqNrSent = 0;
+		
 		ArrayList<NfcMessage> list = messageSplitter.getFragments(bytes);
 		Log.d(TAG, "writing: " + bytes.length + " bytes, " + list.size() + " fragments");
 		
 		for (NfcMessage nfcMessage : list) {
 			NfcMessage response = write(nfcMessage);
-			if (responseIncorrect(response))
-				return null;
 			
 			if (requestsNextFragment(response.getStatus())) {
 				Log.i(TAG, "sending next fragment");
 				continue;
 			} else {
+				response = retransmitIfRequested(nfcMessage, response);
+				
 				messageReassembler.handleReassembly(response);
 				while (hasMoreFragments(response.getStatus())) {
-					response = write(new NfcMessage(NfcMessage.GET_NEXT_FRAGMENT, (byte) 0x00, null));
-					if (responseIncorrect(response))
-						return null;
-					
+					NfcMessage toSend = new NfcMessage(NfcMessage.GET_NEXT_FRAGMENT, (byte) 0x00, null);
+					response = write(toSend);
+					response = retransmitIfRequested(toSend, response);
 					messageReassembler.handleReassembly(response);
 				}
 			}
@@ -134,30 +146,68 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 		return messageReassembler.getData();
 	}
 
-	private boolean responseIncorrect(NfcMessage response) throws TransceiveException {
-		if (response.getData().length < NfcMessage.HEADER_LENGTH) {
-			Log.e(TAG, "error occured while transceiving a message");
+	private NfcMessage retransmitIfRequested(NfcMessage toSend, NfcMessage response) throws TransceiveException {
+		boolean retransmissionSuccess = false;
+		for (int i=0; i<=MAX_RETRANSMITS; i++) {
+			if (retransmissionRequested(response.getStatus())) {
+				Log.d(TAG, "retransmitting last nfc message since requested");
+				response = write(toSend);
+			} else {
+				retransmissionSuccess = true;
+			}
+		}
+		
+		if (!retransmissionSuccess) {
+			//Retransmitting message failed
+			getNfcEventHandler().handleMessage(NfcEvent.NFC_RETRANSMIT_ERROR, null);
 			throw new TransceiveException(UNEXPECTED_ERROR);
 		}
+		
+		return response;
+	}
+
+	private NfcMessage write(NfcMessage nfcMessage) throws IllegalArgumentException, TransceiveException {
+		lastSqNrSent++;
+		nfcMessage.setSequenceNumber((byte) lastSqNrSent);
+		
+		NfcMessage response = writeRaw(nfcMessage);
 		
 		if (response.getStatus() == NfcMessage.ERROR) {
 			Log.d(TAG, "nfc error reported - returning null");
 			getNfcEventHandler().handleMessage(NfcEvent.NFC_ERROR_REPORTED, null);
-			return true;
+			throw new TransceiveException(UNEXPECTED_ERROR);
 		}
 		
-		return false;
-	}
-	
-	private boolean requestsNextFragment(byte status) {
-		return (status & NfcMessage.GET_NEXT_FRAGMENT) == NfcMessage.GET_NEXT_FRAGMENT;
-	}
-	
-	private boolean hasMoreFragments(byte status) {
-		return (status & NfcMessage.HAS_MORE_FRAGMENTS) == NfcMessage.HAS_MORE_FRAGMENTS;
+		boolean sendSuccess = false;
+		for (int i=0; i<=MAX_RETRANSMITS; i++) {
+			if (responseCorrupt(response) || invalidSequenceNubmer(response.getSequenceNumber())) {
+				Log.d(TAG, "requesting retransmission because answer was not as expected");
+				
+				if (invalidSequenceNubmer(response.getSequenceNumber()) && retransmissionRequested(response.getStatus())) {
+					//this is a deadlock, since both parties are requesting a retransmit
+					getNfcEventHandler().handleMessage(NfcEvent.NFC_RETRANSMIT_ERROR, null);
+					throw new TransceiveException(UNEXPECTED_ERROR);
+				}
+				
+				lastSqNrSent++;
+				response = writeRaw(new NfcMessage(NfcMessage.RETRANSMIT, (byte) lastSqNrSent, null));
+			} else {
+				sendSuccess = true;
+				lastSqNrReceived++;
+				break;
+			}
+		}
+		
+		if (!sendSuccess) {
+			//Requesting retransmit failed
+			getNfcEventHandler().handleMessage(NfcEvent.NFC_RETRANSMIT_ERROR, null);
+			throw new TransceiveException(UNEXPECTED_ERROR);
+		}
+		
+		return response;
 	}
 
-	private NfcMessage write(NfcMessage nfcMessage) throws IllegalArgumentException, TransceiveException {
+	private NfcMessage writeRaw(NfcMessage nfcMessage) throws IllegalArgumentException, TransceiveException {
 		if (isEnabled() && isoDep.isConnected()) {
 			if (nfcMessage == null) {
 				throw new IllegalArgumentException(NULL_ARGUMENT);
@@ -178,7 +228,33 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 			throw new TransceiveException(ISODEP_NOT_CONNECTED);
 		}
 	}
-
+	
+	private boolean responseCorrupt(NfcMessage response) {
+		return response.getData().length < NfcMessage.HEADER_LENGTH; 
+	}
+	
+	private boolean invalidSequenceNubmer(byte sequenceNumber) {
+		/*
+		 * Because Java does not support unsigned bytes, we have to convert the
+		 * (signed) byte to an integer in order to get values from 0 to 255
+		 * (instead of -128 to 127)
+		 */
+		int temp = sequenceNumber & 0xFF;
+		return temp != (lastSqNrReceived + 1);
+	}
+	
+	private boolean requestsNextFragment(byte status) {
+		return (status & NfcMessage.GET_NEXT_FRAGMENT) == NfcMessage.GET_NEXT_FRAGMENT;
+	}
+	
+	private boolean retransmissionRequested(byte status) {
+		return (status & NfcMessage.RETRANSMIT) == NfcMessage.RETRANSMIT;
+	}
+	
+	private boolean hasMoreFragments(byte status) {
+		return (status & NfcMessage.HAS_MORE_FRAGMENTS) == NfcMessage.HAS_MORE_FRAGMENTS;
+	}
+	
 //	@Override
 //	public void reset() {
 //		// TODO Auto-generated method stub

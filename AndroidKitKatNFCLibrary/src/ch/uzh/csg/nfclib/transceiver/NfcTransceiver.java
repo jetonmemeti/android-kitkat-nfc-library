@@ -31,8 +31,10 @@ public abstract class NfcTransceiver {
 	
 	public abstract byte[] transceive(byte[] bytes) throws IllegalArgumentException, TransceiveException;
 	
+	//TODO: what about?
 //	public abstract void reset();
-//	
+	
+	//TODO: what about?
 //	public abstract void processResponse();
 	
 	/**
