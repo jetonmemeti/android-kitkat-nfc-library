@@ -60,7 +60,7 @@ public class NfcMessage extends ProtocolMessage {
 	 * 0xFF is returned.
 	 */
 	public byte getSequenceNumber() {
-		if (getData() == null || getData().length < 1)
+		if (getData() == null || getData().length < 2)
 			return (byte) 0xFF;
 		else
 			return getData()[1];
