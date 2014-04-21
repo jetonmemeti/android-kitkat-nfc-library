@@ -18,12 +18,12 @@ public abstract class ProtocolMessage {
 	/**
 	 * Returns the status code contained in the first byte of the header. Each
 	 * {@link ProtocolMessage} has in its first byte of the header some kind of
-	 * status information of that message. If the data is null, then 0xFF is
+	 * status information of that message. If the data is null, then 0x00 is
 	 * returned.
 	 */
 	public byte getStatus() {
 		if (data == null || data.length == 0)
-			return (byte) 0xFF;
+			return 0x00;
 		else
 			return data[0];
 	}

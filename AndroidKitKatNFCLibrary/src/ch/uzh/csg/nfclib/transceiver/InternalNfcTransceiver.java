@@ -233,7 +233,7 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 	}
 	
 	private boolean responseCorrupt(NfcMessage response) {
-		return response.getData().length < NfcMessage.HEADER_LENGTH; 
+		return response.getData() == null || response.getData().length < NfcMessage.HEADER_LENGTH; 
 	}
 	
 	private boolean invalidSequenceNubmer(byte sequenceNumber) {

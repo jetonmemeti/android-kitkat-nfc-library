@@ -12,14 +12,14 @@ package ch.uzh.csg.nfclib.messages;
  */
 public class NfcMessage extends ProtocolMessage {
 	
-	public static final byte DEFAULT = 0x00;
-	public static final byte AID_SELECTED =	0x01;
-	public static final byte START_PROTOCOL = 0x02;
-	public static final byte RETRANSMIT = 0x03;
-	public static final byte HAS_MORE_FRAGMENTS = 0x08;
-	public static final byte GET_NEXT_FRAGMENT = 0x10;
-	public static final byte WAIT_FOR_ANSWER = 0x20;
-	public static final byte ERROR = 0x40;
+	public static final byte DEFAULT = 0x01;
+	public static final byte AID_SELECTED =	0x02;
+	public static final byte START_PROTOCOL = 0x04;
+	public static final byte RETRANSMIT = 0x08;
+	public static final byte HAS_MORE_FRAGMENTS = 0x10;
+	public static final byte GET_NEXT_FRAGMENT = 0x20;
+	public static final byte WAIT_FOR_ANSWER = 0x40;
+	public static final byte ERROR = (byte) 0x80; //-128
 	
 	public static final int HEADER_LENGTH = 2;
 	
@@ -57,11 +57,11 @@ public class NfcMessage extends ProtocolMessage {
 	
 	/**
 	 * Returns the sequence number of this NfcMessage. If the data is null, then
-	 * 0xFF is returned.
+	 * 0x00 is returned.
 	 */
 	public byte getSequenceNumber() {
 		if (getData() == null || getData().length < 2)
-			return (byte) 0xFF;
+			return 0x00;
 		else
 			return getData()[1];
 	}
