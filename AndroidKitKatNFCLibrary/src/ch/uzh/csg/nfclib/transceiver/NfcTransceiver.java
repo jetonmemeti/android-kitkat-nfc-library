@@ -45,9 +45,10 @@ public abstract class NfcTransceiver {
 	protected byte[] createSelectAidApdu() {
 		byte[] temp = new byte[Constants.CLA_INS_P1_P2.length + Constants.AID_MBPS.length + 2];
 		System.arraycopy(Constants.CLA_INS_P1_P2, 0, temp, 0, Constants.CLA_INS_P1_P2.length);
-		temp[4] = (byte) Constants.AID_MBPS.length;
-		System.arraycopy(Constants.AID_MBPS, 0, temp, 5, Constants.AID_MBPS.length);
-		temp[temp.length - 1] = 3;
+		temp[4] = (byte) Constants.AID_MBPS.length; //lc
+		System.arraycopy(Constants.AID_MBPS, 0, temp, 5, Constants.AID_MBPS.length); //data //TODO: add user id
+		temp[temp.length - 1] = 3; //le //TODO: do not hardcode 3, size of expected response
+		
 		return temp;
 	}
 	
