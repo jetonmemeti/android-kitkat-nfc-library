@@ -37,7 +37,7 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 	 * write failed for some reason (i.e., we got not the sequence number we
 	 * expected)
 	 */
-	private static final int MAX_RETRANSMITS = 1;
+	protected static final int MAX_RETRANSMITS = 1;
 
 	private NfcAdapter nfcAdapter;
 	private CustomIsoDep isoDep;
@@ -82,6 +82,8 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 		 * http://www.cardwerk.com/smartcards/smartcard_standard_ISO7816
 		 * -4_6_basic_interindustry_commands.aspx#chap6_1
 		 */
+		
+		//TODO: add keepalive time! bundle
 		nfcAdapter.enableReaderMode(activity, this, NfcAdapter.FLAG_READER_NFC_A | NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK, new Bundle());
 		setEnabled(true);
 	}
@@ -183,10 +185,10 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 		
 		boolean sendSuccess = false;
 		for (int i=0; i<=MAX_RETRANSMITS; i++) {
-			if (responseCorrupt(response) || invalidSequenceNubmer(response.getSequenceNumber())) {
+			if (responseCorrupt(response) || invalidSequenceNumber(response.getSequenceNumber())) {
 				Log.d(TAG, "requesting retransmission because answer was not as expected");
 				
-				if (invalidSequenceNubmer(response.getSequenceNumber()) && retransmissionRequested(response.getStatus())) {
+				if (invalidSequenceNumber(response.getSequenceNumber()) && retransmissionRequested(response.getStatus())) {
 					//this is a deadlock, since both parties are requesting a retransmit
 					getNfcEventHandler().handleMessage(NfcEvent.NFC_RETRANSMIT_ERROR, null);
 					throw new TransceiveException(UNEXPECTED_ERROR);
@@ -236,14 +238,24 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 		return response.getData() == null || response.getData().length < NfcMessage.HEADER_LENGTH; 
 	}
 	
-	private boolean invalidSequenceNubmer(byte sequenceNumber) {
+	private boolean invalidSequenceNumber(byte sequenceNumber) {
 		/*
 		 * Because Java does not support unsigned bytes, we have to convert the
 		 * (signed) byte to an integer in order to get values from 0 to 255
 		 * (instead of -128 to 127)
 		 */
 		int temp = sequenceNumber & 0xFF;
-		return temp != (lastSqNrReceived + 1);
+		if (temp == 255) {
+			if (lastSqNrReceived == 254)
+				return false;
+			else
+				return true;
+		}
+		
+		if (lastSqNrReceived == 255)
+			lastSqNrReceived = 0;
+		
+		return temp != (lastSqNrReceived+1);
 	}
 	
 	private boolean requestsNextFragment(byte status) {
