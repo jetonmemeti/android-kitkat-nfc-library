@@ -166,14 +166,17 @@ public abstract class NfcTransceiver {
 		return temp != (lastSqNrReceived+1);
 	}
 	
+	//TODO: move to NfcMessage
 	private boolean requestsNextFragment(byte status) {
 		return (status & NfcMessage.GET_NEXT_FRAGMENT) == NfcMessage.GET_NEXT_FRAGMENT;
 	}
 	
+	//TODO: move to NfcMessage
 	private boolean retransmissionRequested(byte status) {
 		return (status & NfcMessage.RETRANSMIT) == NfcMessage.RETRANSMIT;
 	}
 	
+	//TODO: move to NfcMessage
 	private boolean hasMoreFragments(byte status) {
 		return (status & NfcMessage.HAS_MORE_FRAGMENTS) == NfcMessage.HAS_MORE_FRAGMENTS;
 	}

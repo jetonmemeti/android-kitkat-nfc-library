@@ -34,6 +34,8 @@ public class CustomHostApduService extends HostApduService {
 	private int lastSqNrReceived;
 	private int lastSqNrSent;
 	private NfcMessage lastMessage;
+	private int nofRetransmissions = 0;
+	private int nofRequestedRetransmissions = 0;
 	
 	public static void init(Activity activity, NfcEventHandler eventHandler, IMessageHandler messageHandler) {
 		hostActivity = activity;
@@ -70,7 +72,13 @@ public class CustomHostApduService extends HostApduService {
 			return new NfcMessage(NfcMessage.AID_SELECTED, (byte) 0x00, new byte[]{NfcMessage.START_PROTOCOL}).getData();
 		}
 		
-		return getResponse(bytes).getData();
+		NfcMessage response = getResponse(bytes);
+		if (response == null) {
+			return null;
+		} else {
+			lastMessage = response;
+			return response.getData();
+		}
 	}
 	
 	private boolean selectAidApdu(byte[] bytes) {
@@ -81,27 +89,51 @@ public class CustomHostApduService extends HostApduService {
 	}
 
 	private NfcMessage getResponse(byte[] bytes) {
-		//TODO: request retransmission here? similar in INT!
-		if (bytes == null || bytes.length < NfcMessage.HEADER_LENGTH) {
-			Log.e(TAG, "error occured when receiving message");
-			eventHandler.handleMessage(NfcEvent.NFC_COMMUNICATION_ERROR, null);
-			return new NfcMessage(NfcMessage.ERROR, (byte) 0x00, null);
-		}
-		
 		NfcMessage incoming = new NfcMessage(bytes);
 		Log.d(TAG, "received msg: "+incoming);
 		
 		byte status = (byte) (incoming.getStatus());
 		
+		if (status == NfcMessage.ERROR) {
+			Log.d(TAG, "nfc error reported - returning null");
+			eventHandler.handleMessage(NfcEvent.NFC_ERROR_REPORTED, null);
+			return null;
+		}
 		
-		//TODO: check sqnr of received msg
+		//TODO: pay attention to 255+1 --> should result in 1, not 0!!
+		//TODO: pay attention to 255+1 --> should result in 1, not 0!! as well in NfcTransceiver!!!
+		lastSqNrSent++;
 		
+		if (corruptMessage(bytes) || invalidSequenceNumber(incoming.getSequenceNumber())) {
+			Log.d(TAG, "requesting retransmission because answer was not as expected");
+			
+			if (invalidSequenceNumber(incoming.getSequenceNumber()) && retransmissionRequested(status)) {
+				//this is a deadlock, since both parties are requesting a retransmit
+				eventHandler.handleMessage(NfcEvent.NFC_RETRANSMIT_ERROR, null);
+				//TODO: add sq nr
+				return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
+			}
+			
+			if (nofRetransmissions < Constants.MAX_RETRANSMITS) {
+				nofRetransmissions++;
+				return new NfcMessage(NfcMessage.RETRANSMIT, (byte) lastSqNrSent, null);
+			} else {
+				//Requesting retransmit failed
+				eventHandler.handleMessage(NfcEvent.NFC_RETRANSMIT_ERROR, null);
+				return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
+			}
+		} else {
+			nofRetransmissions = 0;
+		}
+		
+		lastSqNrReceived++;
+		NfcMessage toReturn;
 		
 		switch (status) {
 		case NfcMessage.HAS_MORE_FRAGMENTS:
 			Log.d(TAG, "has more fragments");
 			messageReassembler.handleReassembly(incoming);
-			return new NfcMessage(NfcMessage.GET_NEXT_FRAGMENT, (byte) 0x00, null);
+			return new NfcMessage(NfcMessage.GET_NEXT_FRAGMENT, (byte) lastSqNrSent, null);
 		case NfcMessage.DEFAULT:
 			Log.d(TAG, "handle default");
 			messageReassembler.handleReassembly(incoming);
@@ -112,41 +144,80 @@ public class CustomHostApduService extends HostApduService {
 			fragments = messageSplitter.getFragments(response);
 			Log.d(TAG, "returning: " + response.length + " bytes, " + fragments.size() + " fragments");
 			if (fragments.size() == 1) {
-				NfcMessage nfcMessage = fragments.get(0);
+				toReturn = fragments.get(0);
+				lastSqNrReceived = 0;
 				index = 0;
 				fragments = null;
-				return nfcMessage;
 			} else {
-				return fragments.get(index++);
+				toReturn = fragments.get(index++);
 			}
+			toReturn.setSequenceNumber((byte) lastSqNrSent);
+			return toReturn;
 		case NfcMessage.GET_NEXT_FRAGMENT:
 			if (fragments != null && !fragments.isEmpty() && index < fragments.size()) {
-				NfcMessage toReturn = fragments.get(index++);
+				toReturn = fragments.get(index++);
 				if (toReturn.getStatus() != NfcMessage.HAS_MORE_FRAGMENTS) {
+					lastSqNrReceived = 0;
 					index = 0;
 					fragments = null;
 				}
+				toReturn.setSequenceNumber((byte) lastSqNrSent);
 				
 				Log.d(TAG, "returning next fragment (index: "+(index-1)+")");
 				return toReturn;
 			} else {
 				Log.e(TAG, "IsoDep wants next fragment, but there is nothing to reply!");
 				eventHandler.handleMessage(NfcEvent.NFC_COMMUNICATION_ERROR, null);
-				return new NfcMessage(NfcMessage.ERROR, (byte) 0x00, null);
+				return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
 			}
 		case NfcMessage.RETRANSMIT:
-			//TODO: implement
-			break;
-		case NfcMessage.ERROR:
-			//TODO: implement
-			break;
-			default:
+			if (nofRequestedRetransmissions < Constants.MAX_RETRANSMITS) {
+				// decrement, since it should have the same sq nr, but was
+				// incremented above
+				lastSqNrSent--;
+				return lastMessage;
+			} else {
+				//Requesting retransmit failed
+				eventHandler.handleMessage(NfcEvent.NFC_RETRANSMIT_ERROR, null);
+				return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
+			}
+		default:
 				//TODO: handle, since this is an error!! should not receive something else than above
 				//TODO: does this ever occur?
 			
 		}
 		//TODO: fix this!
 		return new NfcMessage(NfcMessage.DEFAULT, (byte) 0x00, null);
+	}
+	
+	private boolean corruptMessage(byte[] bytes) {
+		return bytes == null || bytes.length < NfcMessage.HEADER_LENGTH;
+	}
+	
+	//TODO: code duplicated from NfcTransceiver! move to NfcMessage static method? no static!!
+	private boolean retransmissionRequested(byte status) {
+		return (status & NfcMessage.RETRANSMIT) == NfcMessage.RETRANSMIT;
+	}
+	
+	//TODO: code duplicated from NfcTransceiver! move to NfcMessage
+	private boolean invalidSequenceNumber(byte sequenceNumber) {
+		/*
+		 * Because Java does not support unsigned bytes, we have to convert the
+		 * (signed) byte to an integer in order to get values from 0 to 255
+		 * (instead of -128 to 127)
+		 */
+		int temp = sequenceNumber & 0xFF;
+		if (temp == 255) {
+			if (lastSqNrReceived == 254)
+				return false;
+			else
+				return true;
+		}
+		
+		if (lastSqNrReceived == 255)
+			lastSqNrReceived = 0;
+		
+		return temp != (lastSqNrReceived+1);
 	}
 
 	@Override
