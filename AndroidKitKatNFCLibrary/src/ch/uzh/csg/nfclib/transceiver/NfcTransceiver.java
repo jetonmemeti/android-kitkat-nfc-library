@@ -59,14 +59,14 @@ public abstract class NfcTransceiver {
 		for (NfcMessage nfcMessage : list) {
 			NfcMessage response = write(nfcMessage, false);
 			
-			if (requestsNextFragment(response.getStatus())) {
+			if (response.requestsNextFragment()) {
 				Log.i(TAG, "sending next fragment");
 				continue;
 			} else {
 				response = retransmitIfRequested(nfcMessage, response);
 				
 				messageReassembler.handleReassembly(response);
-				while (hasMoreFragments(response.getStatus())) {
+				while (response.hasMoreFragments()) {
 					NfcMessage toSend = new NfcMessage(NfcMessage.GET_NEXT_FRAGMENT, (byte) 0x00, null);
 					response = write(toSend, false);
 					response = retransmitIfRequested(toSend, response);
@@ -81,7 +81,7 @@ public abstract class NfcTransceiver {
 	private NfcMessage retransmitIfRequested(NfcMessage toSend, NfcMessage response) throws TransceiveException {
 		boolean retransmissionSuccess = false;
 		for (int i=0; i<=Constants.MAX_RETRANSMITS; i++) {
-			if (retransmissionRequested(response.getStatus())) {
+			if (response.requestsRetransmission()) {
 				Log.d(TAG, "retransmitting last nfc message since requested");
 				response = write(toSend, true);
 			} else {
@@ -118,7 +118,7 @@ public abstract class NfcTransceiver {
 			if (responseCorrupt(response) || invalidSequenceNumber(response.getSequenceNumber())) {
 				Log.d(TAG, "requesting retransmission because answer was not as expected");
 				
-				if (invalidSequenceNumber(response.getSequenceNumber()) && retransmissionRequested(response.getStatus())) {
+				if (invalidSequenceNumber(response.getSequenceNumber()) && response.requestsRetransmission()) {
 					//this is a deadlock, since both parties are requesting a retransmit
 					getNfcEventHandler().handleMessage(NfcEvent.NFC_RETRANSMIT_ERROR, null);
 					throw new TransceiveException(UNEXPECTED_ERROR);
@@ -164,21 +164,6 @@ public abstract class NfcTransceiver {
 			lastSqNrReceived = 0;
 		
 		return temp != (lastSqNrReceived+1);
-	}
-	
-	//TODO: move to NfcMessage
-	private boolean requestsNextFragment(byte status) {
-		return (status & NfcMessage.GET_NEXT_FRAGMENT) == NfcMessage.GET_NEXT_FRAGMENT;
-	}
-	
-	//TODO: move to NfcMessage
-	private boolean retransmissionRequested(byte status) {
-		return (status & NfcMessage.RETRANSMIT) == NfcMessage.RETRANSMIT;
-	}
-	
-	//TODO: move to NfcMessage
-	private boolean hasMoreFragments(byte status) {
-		return (status & NfcMessage.HAS_MORE_FRAGMENTS) == NfcMessage.HAS_MORE_FRAGMENTS;
 	}
 	
 	//TODO: what about?

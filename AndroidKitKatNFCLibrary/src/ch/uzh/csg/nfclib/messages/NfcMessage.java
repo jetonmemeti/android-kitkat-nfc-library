@@ -80,6 +80,31 @@ public class NfcMessage extends ProtocolMessage {
 		}
 	}
 	
+	/**
+	 * Returns if this NfcMessage is requesting the next fragment. (Returns if
+	 * the header is equals to NfcMessage.GET_NEXT_FRAGMENT).
+	 */
+	public boolean requestsNextFragment() {
+		return (getStatus() & NfcMessage.GET_NEXT_FRAGMENT) == NfcMessage.GET_NEXT_FRAGMENT;
+	}
+	
+	/**
+	 * Returns if this NfcMessage is followed by other other messages which need
+	 * to be reassembled. (Returns if the header is equals to
+	 * NfcMessage.HAS_MORE_FRAGMENTS).
+	 */
+	public boolean hasMoreFragments() {
+		return (getStatus() & NfcMessage.HAS_MORE_FRAGMENTS) == NfcMessage.HAS_MORE_FRAGMENTS;
+	}
+	
+	/**
+	 * Returns if this NfcMessage is requesting a retransmission of the last
+	 * message. (Returns if the header is equals to NfcMessage.RETRANSMIT).
+	 */
+	public boolean requestsRetransmission() {
+		return (getStatus() & NfcMessage.RETRANSMIT) == NfcMessage.RETRANSMIT;
+	}
+	
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder("NfcMessage: ");

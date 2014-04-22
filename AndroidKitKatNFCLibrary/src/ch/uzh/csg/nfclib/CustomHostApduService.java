@@ -107,7 +107,7 @@ public class CustomHostApduService extends HostApduService {
 		if (corruptMessage(bytes) || invalidSequenceNumber(incoming.getSequenceNumber())) {
 			Log.d(TAG, "requesting retransmission because answer was not as expected");
 			
-			if (invalidSequenceNumber(incoming.getSequenceNumber()) && retransmissionRequested(status)) {
+			if (invalidSequenceNumber(incoming.getSequenceNumber()) && incoming.requestsRetransmission()) {
 				//this is a deadlock, since both parties are requesting a retransmit
 				eventHandler.handleMessage(NfcEvent.NFC_RETRANSMIT_ERROR, null);
 				//TODO: add sq nr
@@ -192,11 +192,6 @@ public class CustomHostApduService extends HostApduService {
 	
 	private boolean corruptMessage(byte[] bytes) {
 		return bytes == null || bytes.length < NfcMessage.HEADER_LENGTH;
-	}
-	
-	//TODO: code duplicated from NfcTransceiver! move to NfcMessage static method? no static!!
-	private boolean retransmissionRequested(byte status) {
-		return (status & NfcMessage.RETRANSMIT) == NfcMessage.RETRANSMIT;
 	}
 	
 	//TODO: code duplicated from NfcTransceiver! move to NfcMessage
