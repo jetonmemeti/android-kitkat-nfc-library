@@ -23,13 +23,6 @@ public abstract class NfcTransceiver {
 	public static final String ISODEP_NOT_CONNECTED = "could not write message, IsoDep is no longer connected";
 	public static final String UNEXPECTED_ERROR = "Unexpected error occured while transceiving a message.";
 	
-	/*
-	 * 1 means that a message will be retransmitted at most 1 time if the first
-	 * write failed for some reason (i.e., we got not the sequence number we
-	 * expected)
-	 */
-	protected static final int MAX_RETRANSMITS = 1;
-	
 	private boolean enabled = false;
 	private NfcEventHandler eventHandler;
 	
@@ -87,7 +80,7 @@ public abstract class NfcTransceiver {
 	
 	private NfcMessage retransmitIfRequested(NfcMessage toSend, NfcMessage response) throws TransceiveException {
 		boolean retransmissionSuccess = false;
-		for (int i=0; i<=MAX_RETRANSMITS; i++) {
+		for (int i=0; i<=Constants.MAX_RETRANSMITS; i++) {
 			if (retransmissionRequested(response.getStatus())) {
 				Log.d(TAG, "retransmitting last nfc message since requested");
 				response = write(toSend, true);
@@ -115,13 +108,13 @@ public abstract class NfcTransceiver {
 		NfcMessage response = writeRaw(nfcMessage);
 		
 		if (response.getStatus() == NfcMessage.ERROR) {
-			Log.d(TAG, "nfc error reported - returning null");
+			Log.d(TAG, "nfc error reported");
 			getNfcEventHandler().handleMessage(NfcEvent.NFC_ERROR_REPORTED, null);
 			throw new TransceiveException(UNEXPECTED_ERROR);
 		}
 		
 		boolean sendSuccess = false;
-		for (int i=0; i<=MAX_RETRANSMITS; i++) {
+		for (int i=0; i<=Constants.MAX_RETRANSMITS; i++) {
 			if (responseCorrupt(response) || invalidSequenceNumber(response.getSequenceNumber())) {
 				Log.d(TAG, "requesting retransmission because answer was not as expected");
 				

@@ -6,5 +6,8 @@ public enum NfcEvent {
 	NFC_COMMUNICATION_ERROR,
 	NFC_ERROR_REPORTED,
 	NFC_RETRANSMIT_ERROR;
+	
+	//TODO: nfc message transceived event
+	//TODO: connection lost
 
 }
