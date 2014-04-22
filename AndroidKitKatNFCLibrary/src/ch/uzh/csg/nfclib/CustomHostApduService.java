@@ -59,7 +59,6 @@ public class CustomHostApduService extends HostApduService {
 	public byte[] processCommandApdu(byte[] bytes, Bundle extras) {
 		if (hostActivity == null) {
 			Log.e(TAG, "The user is not in the correct activity but tries to establish a NFC connection.");
-			//TODO: add sequence number?
 			return new NfcMessage(NfcMessage.ERROR, (byte) (0x00), null).getData();
 		}
 		
@@ -145,23 +144,24 @@ public class CustomHostApduService extends HostApduService {
 			Log.d(TAG, "returning: " + response.length + " bytes, " + fragments.size() + " fragments");
 			if (fragments.size() == 1) {
 				toReturn = fragments.get(0);
-				lastSqNrReceived = 0;
+				toReturn.setSequenceNumber((byte) lastSqNrSent);
+				lastSqNrReceived = lastSqNrSent = 0;
 				index = 0;
 				fragments = null;
 			} else {
 				toReturn = fragments.get(index++);
+				toReturn.setSequenceNumber((byte) lastSqNrSent);
 			}
-			toReturn.setSequenceNumber((byte) lastSqNrSent);
 			return toReturn;
 		case NfcMessage.GET_NEXT_FRAGMENT:
 			if (fragments != null && !fragments.isEmpty() && index < fragments.size()) {
 				toReturn = fragments.get(index++);
+				toReturn.setSequenceNumber((byte) lastSqNrSent);
 				if (toReturn.getStatus() != NfcMessage.HAS_MORE_FRAGMENTS) {
-					lastSqNrReceived = 0;
+					lastSqNrReceived = lastSqNrSent = 0;
 					index = 0;
 					fragments = null;
 				}
-				toReturn.setSequenceNumber((byte) lastSqNrSent);
 				
 				Log.d(TAG, "returning next fragment (index: "+(index-1)+")");
 				return toReturn;
