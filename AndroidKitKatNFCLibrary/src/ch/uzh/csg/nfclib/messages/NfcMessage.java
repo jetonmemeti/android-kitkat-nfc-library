@@ -83,11 +83,16 @@ public class NfcMessage extends ProtocolMessage {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder("NfcMessage: ");
-		sb.append("head: ");
-		sb.append(", status: ").append(Integer.toHexString(getData()[0] & 0xFF));
-		sb.append(", sequence: ").append(Integer.valueOf(getData()[1] & 0xFF));
-		sb.append("/ payload length:").append(getData().length-HEADER_LENGTH);
-		return sb.toString();
+		if (getData() == null || getData().length < 2) {
+			sb.append("corrupt message!");
+			return sb.toString();
+		} else {
+			sb.append("head: ");
+			sb.append(", status: ").append(Integer.toHexString(getData()[0] & 0xFF));
+			sb.append(", sequence: ").append(Integer.valueOf(getData()[1] & 0xFF));
+			sb.append("/ payload length:").append(getData().length-HEADER_LENGTH);
+			return sb.toString();
+		}
 	}
 	
 }
