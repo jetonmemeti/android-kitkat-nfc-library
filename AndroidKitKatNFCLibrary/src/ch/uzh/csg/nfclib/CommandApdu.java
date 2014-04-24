@@ -38,7 +38,7 @@ public class CommandApdu {
 	}
 	
 	public static long getUserId(byte[] bytes) {
-		byte[] userIdBytes = Arrays.copyOfRange(bytes, Constants.CLA_INS_P1_P2.length+1+Constants.AID_MBPS.length, bytes.length-2);
+		byte[] userIdBytes = Arrays.copyOfRange(bytes, Constants.CLA_INS_P1_P2.length+1+Constants.AID_MBPS.length, bytes.length-1);
 		ByteBuffer buffer = ByteBuffer.allocate(Long.SIZE / Byte.SIZE);
 		buffer.put(userIdBytes);
 		buffer.flip();
