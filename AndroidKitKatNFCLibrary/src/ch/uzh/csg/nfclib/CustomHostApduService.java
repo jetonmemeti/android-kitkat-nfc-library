@@ -35,7 +35,6 @@ public class CustomHostApduService extends HostApduService {
 	private int lastSqNrSent;
 	private NfcMessage lastMessage;
 	private int nofRetransmissions = 0;
-	private int nofRequestedRetransmissions = 0;
 	
 	public static void init(Activity activity, NfcEventHandler eventHandler, IMessageHandler messageHandler) {
 		hostActivity = activity;
@@ -103,19 +102,26 @@ public class CustomHostApduService extends HostApduService {
 		//TODO: pay attention to 255+1 --> should result in 1, not 0!! as well in NfcTransceiver!!!
 		lastSqNrSent++;
 		
-		if (corruptMessage(bytes) || invalidSequenceNumber(incoming.getSequenceNumber())) {
+		if (corruptMessage(bytes)) {
+			return returnRetransmissionOrError();
+		} else if (invalidSequenceNumber(incoming.getSequenceNumber())) {
 			Log.d(TAG, "requesting retransmission because answer was not as expected");
 			
-			if (invalidSequenceNumber(incoming.getSequenceNumber()) && incoming.requestsRetransmission()) {
+			if (incoming.requestsRetransmission()) {
 				//this is a deadlock, since both parties are requesting a retransmit
 				eventHandler.handleMessage(NfcEvent.NFC_RETRANSMIT_ERROR, null);
-				//TODO: add sq nr
 				return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
 			}
 			
+			return returnRetransmissionOrError();
+		} else if (incoming.requestsRetransmission()) {
+			lastSqNrReceived++;
 			if (nofRetransmissions < Constants.MAX_RETRANSMITS) {
 				nofRetransmissions++;
-				return new NfcMessage(NfcMessage.RETRANSMIT, (byte) lastSqNrSent, null);
+				// decrement, since it should have the same sq nr, but was
+				// incremented above
+				lastSqNrSent--;
+				return lastMessage;
 			} else {
 				//Requesting retransmit failed
 				eventHandler.handleMessage(NfcEvent.NFC_RETRANSMIT_ERROR, null);
@@ -126,6 +132,7 @@ public class CustomHostApduService extends HostApduService {
 		}
 		
 		lastSqNrReceived++;
+		
 		NfcMessage toReturn;
 		
 		switch (status) {
@@ -170,17 +177,6 @@ public class CustomHostApduService extends HostApduService {
 				eventHandler.handleMessage(NfcEvent.NFC_COMMUNICATION_ERROR, null);
 				return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
 			}
-		case NfcMessage.RETRANSMIT:
-			if (nofRequestedRetransmissions < Constants.MAX_RETRANSMITS) {
-				// decrement, since it should have the same sq nr, but was
-				// incremented above
-				lastSqNrSent--;
-				return lastMessage;
-			} else {
-				//Requesting retransmit failed
-				eventHandler.handleMessage(NfcEvent.NFC_RETRANSMIT_ERROR, null);
-				return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
-			}
 		default:
 				//TODO: handle, since this is an error!! should not receive something else than above
 				//TODO: does this ever occur?
@@ -188,6 +184,17 @@ public class CustomHostApduService extends HostApduService {
 		}
 		//TODO: fix this!
 		return new NfcMessage(NfcMessage.DEFAULT, (byte) 0x00, null);
+	}
+
+	private NfcMessage returnRetransmissionOrError() {
+		if (nofRetransmissions < Constants.MAX_RETRANSMITS) {
+			nofRetransmissions++;
+			return new NfcMessage(NfcMessage.RETRANSMIT, (byte) lastSqNrSent, null);
+		} else {
+			//Requesting retransmit failed
+			eventHandler.handleMessage(NfcEvent.NFC_RETRANSMIT_ERROR, null);
+			return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
+		}
 	}
 	
 	private boolean corruptMessage(byte[] bytes) {
