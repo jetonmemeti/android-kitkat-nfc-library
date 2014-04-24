@@ -32,6 +32,8 @@ public class CustomHostApduService extends HostApduService {
 	private static ArrayList<NfcMessage> fragments;
 	private static int index = 0;
 	
+	private long userIdReceived;
+	
 	private int lastSqNrReceived;
 	private int lastSqNrSent;
 	private NfcMessage lastMessage;
@@ -69,10 +71,12 @@ public class CustomHostApduService extends HostApduService {
 			 * and is set to 3 actually.
 			 */
 			
+			userIdReceived = CommandApdu.getUserId(bytes);
+			
 			Log.d(TAG, "AID selected");
 			//TODO: decide based on time if to resume or restart!
 			//TODO: appropriately reset seq number references!
-			eventHandler.handleMessage(NfcEvent.NFC_INITIALIZED, null);
+			eventHandler.handleMessage(NfcEvent.NFC_INITIALIZED, Long.valueOf(userIdReceived));
 			//TODO: change payload! combine into status with OR!
 			return new NfcMessage(NfcMessage.AID_SELECTED, (byte) 0x00, new byte[]{NfcMessage.START_PROTOCOL}).getData();
 		} else if (readBinary(bytes)) {

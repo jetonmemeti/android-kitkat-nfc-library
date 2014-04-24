@@ -27,8 +27,8 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 	private NfcAdapter nfcAdapter;
 	private CustomIsoDep isoDep;
 	
-	public InternalNfcTransceiver(NfcEventHandler eventHandler) {
-		super(eventHandler, MAX_WRITE_LENGTH);
+	public InternalNfcTransceiver(NfcEventHandler eventHandler, long userId) {
+		super(eventHandler, MAX_WRITE_LENGTH, userId);
 		isoDep = new CustomIsoDep();
 	}
 	
@@ -37,8 +37,8 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 	 * For productive use please use the constructor above, otherwise the NFC
 	 * will not work.
 	 */
-	protected InternalNfcTransceiver(NfcEventHandler eventHandler, CustomIsoDep isoDep) {
-		this(eventHandler);
+	protected InternalNfcTransceiver(NfcEventHandler eventHandler, long userId, CustomIsoDep isoDep) {
+		this(eventHandler, userId);
 		this.isoDep = isoDep;
 	}
 
@@ -89,7 +89,7 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 
 	@Override
 	protected void initNfc() throws IOException {
-		byte[] response = isoDep.transceive(createSelectAidApdu());
+		byte[] response = isoDep.transceive(createSelectAidApdu(getUserId()));
 		handleAidApduResponse(response);
 	}
 
