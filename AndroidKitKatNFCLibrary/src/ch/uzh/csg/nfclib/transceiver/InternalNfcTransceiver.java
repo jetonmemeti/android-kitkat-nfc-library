@@ -27,8 +27,8 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 	private NfcAdapter nfcAdapter;
 	private CustomIsoDep isoDep;
 	
-	public InternalNfcTransceiver(NfcEventHandler eventHandler) {
-		super(eventHandler, MAX_WRITE_LENGTH);
+	public InternalNfcTransceiver(NfcEventHandler eventHandler, long userId) {
+		super(eventHandler, MAX_WRITE_LENGTH, userId);
 		isoDep = new CustomIsoDep();
 	}
 	
@@ -37,8 +37,8 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 	 * For productive use please use the constructor above, otherwise the NFC
 	 * will not work.
 	 */
-	protected InternalNfcTransceiver(NfcEventHandler eventHandler, CustomIsoDep isoDep) {
-		this(eventHandler);
+	protected InternalNfcTransceiver(NfcEventHandler eventHandler, long userId, CustomIsoDep isoDep) {
+		this(eventHandler, userId);
 		this.isoDep = isoDep;
 	}
 
@@ -52,16 +52,18 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 			throw new NfcNotEnabledException();
 		
 		/*
-		 * This will send a check presence message that needs to be handled by
-		 * HostApduService! You may run into the issue with other cards as shown
-		 * here: http://code.google.com/p/android/issues/detail?id=58773. For
-		 * more details on the ISO spec see
-		 * http://www.cardwerk.com/smartcards/smartcard_standard_ISO7816
-		 * -4_6_basic_interindustry_commands.aspx#chap6_1
+		 * Based on the reported issue in
+		 * https://code.google.com/p/android/issues/detail?id=58773, there is a
+		 * failure in the Android NFC protocol. The IsoDep might transceive a
+		 * READ BINARY, if the communication with the tag (or HCE) has been idle
+		 * for a given time (125ms as mentioned on the issue report). This idle
+		 * time can be changed with the EXTRA_READER_PRESENCE_CHECK_DELAY
+		 * option.
 		 */
+		Bundle options = new Bundle();
+		options.putInt(NfcAdapter.EXTRA_READER_PRESENCE_CHECK_DELAY, 5000);
 		
-		//TODO: add keepalive time! bundle
-		nfcAdapter.enableReaderMode(activity, this, NfcAdapter.FLAG_READER_NFC_A | NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK, new Bundle());
+		nfcAdapter.enableReaderMode(activity, this, NfcAdapter.FLAG_READER_NFC_A | NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK, options);
 		setEnabled(true);
 	}
 
@@ -87,7 +89,7 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 
 	@Override
 	protected void initNfc() throws IOException {
-		byte[] response = isoDep.transceive(createSelectAidApdu());
+		byte[] response = isoDep.transceive(createSelectAidApdu(getUserId()));
 		handleAidApduResponse(response);
 	}
 
@@ -119,12 +121,6 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 //		// TODO Auto-generated method stub
 //		
 //	}
-//
-//	@Override
-//	public void processResponse() {
-//		// TODO Auto-generated method stub
-//		
-//	}
 
 	private void cancel() {
 		if (isoDep != null && isoDep.isConnected()) {
@@ -135,9 +131,5 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 			}
 		}
 	}
-	
-	
-	
-	
 	
 }

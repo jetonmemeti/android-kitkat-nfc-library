@@ -5,6 +5,7 @@ import java.util.ArrayList;
 
 import android.app.Activity;
 import android.util.Log;
+import ch.uzh.csg.nfclib.CommandApdu;
 import ch.uzh.csg.nfclib.NfcEvent;
 import ch.uzh.csg.nfclib.NfcEventHandler;
 import ch.uzh.csg.nfclib.exceptions.NfcNotEnabledException;
@@ -26,16 +27,19 @@ public abstract class NfcTransceiver {
 	private boolean enabled = false;
 	private NfcEventHandler eventHandler;
 	
+	private long userId;
+	
 	private NfcMessageSplitter messageSplitter;
 	private NfcMessageReassembler messageReassembler;
 	
 	private int lastSqNrReceived;
 	private int lastSqNrSent;
 	
-	public NfcTransceiver(NfcEventHandler eventHandler, int maxWriteLength) {
+	public NfcTransceiver(NfcEventHandler eventHandler, int maxWriteLength, long userId) {
 		this.eventHandler = eventHandler;
 		messageSplitter = new NfcMessageSplitter(maxWriteLength);
 		messageReassembler = new NfcMessageReassembler();
+		this.userId = userId;
 	}
 	
 	public abstract void enable(Activity activity) throws NoNfcException, NfcNotEnabledException;
@@ -169,22 +173,19 @@ public abstract class NfcTransceiver {
 	//TODO: what about?
 //	public abstract void reset();
 	
-	//TODO: what about?
-//	public abstract void processResponse();
-	
 	/**
 	 * To initiate a NFC connection, the NFC reader sends a "SELECT AID" APDU to
 	 * the emulated card. Android OS then instantiates the service which has
 	 * this AID registered (see apduservice.xml).
+	 * 
+	 * @param userId
+	 *            the user id is needed to recognize that the same device is
+	 *            re-connecting to the HCE (after an unintended NFC hand-shake
+	 *            with NXP controllers)
+	 * @return the select aid apdu message
 	 */
-	protected byte[] createSelectAidApdu() {
-		byte[] temp = new byte[Constants.CLA_INS_P1_P2.length + Constants.AID_MBPS.length + 2];
-		System.arraycopy(Constants.CLA_INS_P1_P2, 0, temp, 0, Constants.CLA_INS_P1_P2.length);
-		temp[4] = (byte) Constants.AID_MBPS.length; //lc
-		System.arraycopy(Constants.AID_MBPS, 0, temp, 5, Constants.AID_MBPS.length); //data //TODO: add user id
-		temp[temp.length - 1] = 3; //le //TODO: do not hardcode 3, size of expected response
-		
-		return temp;
+	protected byte[] createSelectAidApdu(long userId) {
+		return CommandApdu.getCommandApdu(userId);
 	}
 	
 	protected void handleAidApduResponse(byte[] response) {
@@ -208,6 +209,10 @@ public abstract class NfcTransceiver {
 	
 	protected NfcEventHandler getNfcEventHandler() {
 		return eventHandler;
+	}
+	
+	protected long getUserId() {
+		return userId;
 	}
 	
 }
