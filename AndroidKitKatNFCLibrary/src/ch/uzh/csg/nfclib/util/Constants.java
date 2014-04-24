@@ -9,9 +9,9 @@ public class Constants {
 	 */
 	public static final byte[] CLA_INS_P1_P2 = { 0x00, (byte) 0xA4, 0x04, 0x00 };
 	public static final byte[] AID_MBPS = { (byte) 0xF0, (byte) 0xF0, 0x07, 0x77, (byte) 0xFF, 0x55, 0x11 };
+	public static final byte[] READ_BINARY = { 0x00, (byte) 0xB0, 0x00, 0x00, 0x01};
 	//TODO: needed?
 //	public static final byte[] AID_MBPS_RESUME = { (byte) 0xF0, (byte) 0xF0, 0x07, 0x77, (byte) 0xFF, 0x55, 0x12 };
-//	public static final byte[] READ_BINARY = new byte[]{0, (byte)0xb0,0,0,1};
 	
 	/*
 	 * Indicates the amount of retransmissions requested or sent when an error
@@ -20,7 +20,6 @@ public class Constants {
 	 * number we expected)
 	 */
 	public static final int MAX_RETRANSMITS = 1;
-	
 	
 	
 	

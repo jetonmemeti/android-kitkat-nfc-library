@@ -1,6 +1,7 @@
 package ch.uzh.csg.nfclib;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import android.app.Activity;
 import android.nfc.cardemulation.HostApduService;
@@ -63,12 +64,20 @@ public class CustomHostApduService extends HostApduService {
 		}
 		
 		if (selectAidApdu(bytes)) {
+			/*
+			 * The size of the returned message is specified in NfcTransceiver
+			 * and is set to 3 actually.
+			 */
+			
 			Log.d(TAG, "AID selected");
 			//TODO: decide based on time if to resume or restart!
 			//TODO: appropriately reset seq number references!
 			eventHandler.handleMessage(NfcEvent.NFC_INITIALIZED, null);
 			//TODO: change payload! combine into status with OR!
 			return new NfcMessage(NfcMessage.AID_SELECTED, (byte) 0x00, new byte[]{NfcMessage.START_PROTOCOL}).getData();
+		} else if (readBinary(bytes)) {
+			//TODO: check if this ok
+			return new byte[] { 0x00 };
 		}
 		
 		NfcMessage response = getResponse(bytes);
@@ -80,6 +89,19 @@ public class CustomHostApduService extends HostApduService {
 		}
 	}
 	
+	private boolean readBinary(byte[] bytes) {
+		/*
+		 * Based on the reported issue in
+		 * https://code.google.com/p/android/issues/detail?id=58773, there is a
+		 * failure in the Android NFC protocol. The IsoDep might transceive a
+		 * READ BINARY, if the communication with the tag (or HCE) has been idle
+		 * for a given time (125ms as mentioned on the issue report). This idle
+		 * time can be changed with the EXTRA_READER_PRESENCE_CHECK_DELAY
+		 * option.
+		 */
+		return Arrays.equals(bytes, Constants.READ_BINARY);
+	}
+
 	private boolean selectAidApdu(byte[] bytes) {
 		if (bytes == null || bytes.length < 2)
 			return false;

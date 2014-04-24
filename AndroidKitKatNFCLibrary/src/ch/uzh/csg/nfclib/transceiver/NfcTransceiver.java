@@ -169,20 +169,29 @@ public abstract class NfcTransceiver {
 	//TODO: what about?
 //	public abstract void reset();
 	
-	//TODO: what about?
-//	public abstract void processResponse();
-	
 	/**
 	 * To initiate a NFC connection, the NFC reader sends a "SELECT AID" APDU to
 	 * the emulated card. Android OS then instantiates the service which has
 	 * this AID registered (see apduservice.xml).
 	 */
 	protected byte[] createSelectAidApdu() {
+		/*
+		 * ISO 7816-4 specifies how the command APDU must look like. See
+		 * http://www.cardwerk.com/smartcards/smartcard_standard_ISO7816-4_5_basic_organizations.aspx#chap5_3
+		 */
+		
+		//  CLA_INS_P1_P2 has by the specification 4 bytes
 		byte[] temp = new byte[Constants.CLA_INS_P1_P2.length + Constants.AID_MBPS.length + 2];
 		System.arraycopy(Constants.CLA_INS_P1_P2, 0, temp, 0, Constants.CLA_INS_P1_P2.length);
-		temp[4] = (byte) Constants.AID_MBPS.length; //lc
-		System.arraycopy(Constants.AID_MBPS, 0, temp, 5, Constants.AID_MBPS.length); //data //TODO: add user id
-		temp[temp.length - 1] = 3; //le //TODO: do not hardcode 3, size of expected response
+
+		// Lc: the number of bytes present in the data field of the command APDU
+		temp[4] = (byte) Constants.AID_MBPS.length;
+
+		// the data field
+		System.arraycopy(Constants.AID_MBPS, 0, temp, 5, Constants.AID_MBPS.length); //TODO: add user id
+		
+		// Le: the maximum number of bytes expected in the data field of the response APDU
+		temp[temp.length - 1] = 3;
 		
 		return temp;
 	}
