@@ -13,14 +13,4 @@ public class Constants {
 	//TODO: needed?
 //	public static final byte[] AID_MBPS_RESUME = { (byte) 0xF0, (byte) 0xF0, 0x07, 0x77, (byte) 0xFF, 0x55, 0x12 };
 	
-	/*
-	 * Indicates the amount of retransmissions requested or sent when an error
-	 * occurred. 1 means that a message will be retransmitted at most 1 time if
-	 * the first write failed for some reason (i.e., we got not the sequence
-	 * number we expected)
-	 */
-	public static final int MAX_RETRANSMITS = 1;
-	
-	
-	
 }

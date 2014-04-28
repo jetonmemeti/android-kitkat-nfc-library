@@ -12,7 +12,7 @@ import ch.uzh.csg.nfclib.exceptions.NfcNotEnabledException;
 import ch.uzh.csg.nfclib.exceptions.NoNfcException;
 import ch.uzh.csg.nfclib.exceptions.TransceiveException;
 import ch.uzh.csg.nfclib.messages.NfcMessage;
-import ch.uzh.csg.nfclib.util.Constants;
+import ch.uzh.csg.nfclib.util.Config;
 import ch.uzh.csg.nfclib.util.NfcMessageReassembler;
 import ch.uzh.csg.nfclib.util.NfcMessageSplitter;
 
@@ -108,7 +108,7 @@ public abstract class NfcTransceiver {
 				retransmissionSuccess = true;
 				break;
 			}
-		} while (count < Constants.MAX_RETRANSMITS);
+		} while (count < Config.MAX_RETRANSMITS);
 		
 		if (!retransmissionSuccess) {
 			//Retransmitting message failed
@@ -135,7 +135,7 @@ public abstract class NfcTransceiver {
 		}
 		
 		boolean sendSuccess = false;
-		for (int i=0; i<=Constants.MAX_RETRANSMITS; i++) {
+		for (int i=0; i<=Config.MAX_RETRANSMITS; i++) {
 			if (responseCorrupt(response) || invalidSequenceNumber(response.getSequenceNumber())) {
 				Log.d(TAG, "requesting retransmission because answer was not as expected");
 				

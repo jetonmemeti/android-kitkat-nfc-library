@@ -8,6 +8,7 @@ import android.nfc.cardemulation.HostApduService;
 import android.os.Bundle;
 import android.util.Log;
 import ch.uzh.csg.nfclib.messages.NfcMessage;
+import ch.uzh.csg.nfclib.util.Config;
 import ch.uzh.csg.nfclib.util.Constants;
 import ch.uzh.csg.nfclib.util.NfcMessageReassembler;
 import ch.uzh.csg.nfclib.util.NfcMessageSplitter;
@@ -32,12 +33,14 @@ public class CustomHostApduService extends HostApduService {
 	private static ArrayList<NfcMessage> fragments;
 	private static int index = 0;
 	
-	private long userIdReceived;
+	private static long userIdReceived = 0;
 	
-	private int lastSqNrReceived;
-	private int lastSqNrSent;
-	private NfcMessage lastMessage;
-	private int nofRetransmissions = 0;
+	private static long timeDeactivated = 0;
+	
+	private static int lastSqNrReceived;
+	private static int lastSqNrSent;
+	private static NfcMessage lastMessage;
+	private static int nofRetransmissions = 0;
 	
 	public static void init(Activity activity, NfcEventHandler eventHandler, IMessageHandler messageHandler) {
 		hostActivity = activity;
@@ -67,17 +70,21 @@ public class CustomHostApduService extends HostApduService {
 		if (selectAidApdu(bytes)) {
 			/*
 			 * The size of the returned message is specified in NfcTransceiver
-			 * and is set to 3 actually.
+			 * and is set to 2 actually.
 			 */
-			
-			userIdReceived = CommandApdu.getUserId(bytes);
-			
 			Log.d(TAG, "AID selected");
-			//TODO: decide based on time if to resume or restart!
-			//TODO: appropriately reset seq number references!
-			eventHandler.handleMessage(NfcEvent.INITIALIZED, Long.valueOf(userIdReceived));
-			//TODO: change payload! combine into status with OR!
-			return new NfcMessage(NfcMessage.AID_SELECTED, (byte) 0x00, new byte[]{NfcMessage.START_PROTOCOL}).getData();
+			
+			long now = System.currentTimeMillis();
+			long newUserId = CommandApdu.getUserId(bytes);
+			
+			if (newUserId == userIdReceived && (now - timeDeactivated < Config.SESSION_RESUME_THRESHOLD)) {
+				return new NfcMessage(NfcMessage.AID_SELECTED, (byte) 0x00, null).getData();
+			} else {
+				userIdReceived = newUserId;
+				eventHandler.handleMessage(NfcEvent.INITIALIZED, Long.valueOf(userIdReceived));
+				resetStates();
+				return new NfcMessage((byte) (NfcMessage.AID_SELECTED | NfcMessage.START_PROTOCOL), (byte) 0x00, null).getData();
+			}
 		} else if (readBinary(bytes)) {
 			//TODO: check if this ok
 			return new byte[] { 0x00 };
@@ -91,7 +98,7 @@ public class CustomHostApduService extends HostApduService {
 			return response.getData();
 		}
 	}
-	
+
 	private boolean readBinary(byte[] bytes) {
 		/*
 		 * Based on the reported issue in
@@ -110,6 +117,18 @@ public class CustomHostApduService extends HostApduService {
 			return false;
 		else
 			return bytes[0] == Constants.CLA_INS_P1_P2[0] && bytes[1] == Constants.CLA_INS_P1_P2[1];
+	}
+
+	private void resetStates() {
+		messageReassembler.clear();
+		fragments = null;
+		index = 0;
+		
+		lastSqNrReceived = 0;
+		lastSqNrSent = 0;
+		lastMessage = null;
+		
+		nofRetransmissions = 0;
 	}
 
 	private NfcMessage getResponse(byte[] bytes) {
@@ -142,7 +161,7 @@ public class CustomHostApduService extends HostApduService {
 			return returnRetransmissionOrError();
 		} else if (incoming.requestsRetransmission()) {
 			lastSqNrReceived++;
-			if (nofRetransmissions < Constants.MAX_RETRANSMITS) {
+			if (nofRetransmissions < Config.MAX_RETRANSMITS) {
 				nofRetransmissions++;
 				// decrement, since it should have the same sq nr, but was
 				// incremented above
@@ -218,7 +237,7 @@ public class CustomHostApduService extends HostApduService {
 	}
 
 	private NfcMessage returnRetransmissionOrError() {
-		if (nofRetransmissions < Constants.MAX_RETRANSMITS) {
+		if (nofRetransmissions < Config.MAX_RETRANSMITS) {
 			nofRetransmissions++;
 			return new NfcMessage(NfcMessage.RETRANSMIT, (byte) lastSqNrSent, null);
 		} else {
@@ -257,6 +276,7 @@ public class CustomHostApduService extends HostApduService {
 	public void onDeactivated(int reason) {
 		//TODO: event handler!
 		Log.d(TAG, "deactivated due to " + (reason == HostApduService.DEACTIVATION_LINK_LOSS ? "link loss" : "deselected") + "("+reason+")");
+		timeDeactivated = System.currentTimeMillis();
 	}
 
 }

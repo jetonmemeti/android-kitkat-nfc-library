@@ -8,7 +8,7 @@ import ch.uzh.csg.nfclib.messages.NfcMessage;
  */
 public class NfcMessageReassembler {
 
-private byte[] responseData;
+	private byte[] responseData;
 	
 	/**
 	 * Handles an incoming NFC message. If this is not the first NFC message, the

@@ -28,7 +28,7 @@ public class CommandApdu {
 		System.arraycopy(userIdBytes, 0, temp, Constants.CLA_INS_P1_P2.length+1+Constants.AID_MBPS.length, userIdBytes.length);
 		
 		// Le: the maximum number of bytes expected in the data field of the response APDU
-		temp[temp.length - 1] = 3;
+		temp[temp.length - 1] = 2;
 		
 		return temp;
 	}
