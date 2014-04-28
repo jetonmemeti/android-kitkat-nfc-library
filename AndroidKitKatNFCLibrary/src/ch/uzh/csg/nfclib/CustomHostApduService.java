@@ -168,6 +168,9 @@ public class CustomHostApduService extends HostApduService {
 			return new NfcMessage(NfcMessage.GET_NEXT_FRAGMENT, (byte) lastSqNrSent, null);
 		case NfcMessage.DEFAULT:
 			Log.d(TAG, "handle default");
+			
+			eventHandler.handleMessage(NfcEvent.MESSAGE_RECEIVED, null);
+			
 			messageReassembler.handleReassembly(incoming);
 			//TODO: what if implementation takes to long?? polling?
 			byte[] response = messageHandler.handleMessage(messageReassembler.getData());
@@ -181,6 +184,7 @@ public class CustomHostApduService extends HostApduService {
 				lastSqNrReceived = lastSqNrSent = 0;
 				index = 0;
 				fragments = null;
+				eventHandler.handleMessage(NfcEvent.MESSAGE_RETURNED, null);
 			} else {
 				toReturn = fragments.get(index++);
 				toReturn.setSequenceNumber((byte) lastSqNrSent);
@@ -194,6 +198,7 @@ public class CustomHostApduService extends HostApduService {
 					lastSqNrReceived = lastSqNrSent = 0;
 					index = 0;
 					fragments = null;
+					eventHandler.handleMessage(NfcEvent.MESSAGE_RETURNED, null);
 				}
 				
 				Log.d(TAG, "returning next fragment (index: "+(index-1)+")");

@@ -73,6 +73,10 @@ public abstract class NfcTransceiver {
 				if (response.requestsNextFragment()) {
 					continue;
 				} else {
+					// the last message has been sent to the HCE, now we receive the response
+					
+					getNfcEventHandler().handleMessage(NfcEvent.MESSAGE_SENT, null);
+					
 					messageReassembler.handleReassembly(response);
 					while (response.hasMoreFragments()) {
 						NfcMessage toSend = new NfcMessage(NfcMessage.GET_NEXT_FRAGMENT, (byte) 0x00, null);
@@ -86,6 +90,7 @@ public abstract class NfcTransceiver {
 			}
 		}
 		
+		getNfcEventHandler().handleMessage(NfcEvent.MESSAGE_RECEIVED, null);
 		return messageReassembler.getData();
 	}
 	

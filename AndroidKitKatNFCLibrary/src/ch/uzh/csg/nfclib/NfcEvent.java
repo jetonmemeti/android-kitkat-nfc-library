@@ -5,9 +5,12 @@ public enum NfcEvent {
 	INITIALIZED,
 	COMMUNICATION_ERROR,
 	ERROR_REPORTED,
-	RETRANSMIT_ERROR;
+	RETRANSMIT_ERROR,
+	MESSAGE_SENT,
+	MESSAGE_RECEIVED,
+	MESSAGE_RETURNED;
 	
-	//TODO: nfc message transceived event
-	//TODO: connection lost
-
+	//TODO: implement
+//	CONNECTION_LOST;
+	
 }
