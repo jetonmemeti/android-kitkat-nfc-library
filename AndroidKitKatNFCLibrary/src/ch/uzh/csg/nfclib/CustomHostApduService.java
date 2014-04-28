@@ -274,9 +274,9 @@ public class CustomHostApduService extends HostApduService {
 
 	@Override
 	public void onDeactivated(int reason) {
-		//TODO: event handler!
 		Log.d(TAG, "deactivated due to " + (reason == HostApduService.DEACTIVATION_LINK_LOSS ? "link loss" : "deselected") + "("+reason+")");
 		timeDeactivated = System.currentTimeMillis();
+		eventHandler.handleMessage(NfcEvent.CONNECTION_LOST, null);
 	}
 
 }
