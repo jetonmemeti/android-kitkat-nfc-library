@@ -75,7 +75,7 @@ public class CustomHostApduService extends HostApduService {
 			Log.d(TAG, "AID selected");
 			//TODO: decide based on time if to resume or restart!
 			//TODO: appropriately reset seq number references!
-			eventHandler.handleMessage(NfcEvent.NFC_INITIALIZED, Long.valueOf(userIdReceived));
+			eventHandler.handleMessage(NfcEvent.INITIALIZED, Long.valueOf(userIdReceived));
 			//TODO: change payload! combine into status with OR!
 			return new NfcMessage(NfcMessage.AID_SELECTED, (byte) 0x00, new byte[]{NfcMessage.START_PROTOCOL}).getData();
 		} else if (readBinary(bytes)) {
@@ -120,7 +120,7 @@ public class CustomHostApduService extends HostApduService {
 		
 		if (status == NfcMessage.ERROR) {
 			Log.d(TAG, "nfc error reported - returning null");
-			eventHandler.handleMessage(NfcEvent.NFC_ERROR_REPORTED, null);
+			eventHandler.handleMessage(NfcEvent.ERROR_REPORTED, null);
 			return null;
 		}
 		
@@ -135,7 +135,7 @@ public class CustomHostApduService extends HostApduService {
 			
 			if (incoming.requestsRetransmission()) {
 				//this is a deadlock, since both parties are requesting a retransmit
-				eventHandler.handleMessage(NfcEvent.NFC_RETRANSMIT_ERROR, null);
+				eventHandler.handleMessage(NfcEvent.RETRANSMIT_ERROR, null);
 				return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
 			}
 			
@@ -150,7 +150,7 @@ public class CustomHostApduService extends HostApduService {
 				return lastMessage;
 			} else {
 				//Requesting retransmit failed
-				eventHandler.handleMessage(NfcEvent.NFC_RETRANSMIT_ERROR, null);
+				eventHandler.handleMessage(NfcEvent.RETRANSMIT_ERROR, null);
 				return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
 			}
 		} else {
@@ -200,7 +200,7 @@ public class CustomHostApduService extends HostApduService {
 				return toReturn;
 			} else {
 				Log.e(TAG, "IsoDep wants next fragment, but there is nothing to reply!");
-				eventHandler.handleMessage(NfcEvent.NFC_COMMUNICATION_ERROR, null);
+				eventHandler.handleMessage(NfcEvent.COMMUNICATION_ERROR, null);
 				return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
 			}
 		default:
@@ -218,7 +218,7 @@ public class CustomHostApduService extends HostApduService {
 			return new NfcMessage(NfcMessage.RETRANSMIT, (byte) lastSqNrSent, null);
 		} else {
 			//Requesting retransmit failed
-			eventHandler.handleMessage(NfcEvent.NFC_RETRANSMIT_ERROR, null);
+			eventHandler.handleMessage(NfcEvent.RETRANSMIT_ERROR, null);
 			return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
 		}
 	}

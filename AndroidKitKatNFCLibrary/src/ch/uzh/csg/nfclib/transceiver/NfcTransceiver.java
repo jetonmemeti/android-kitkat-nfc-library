@@ -95,7 +95,7 @@ public abstract class NfcTransceiver {
 		
 		if (!retransmissionSuccess) {
 			//Retransmitting message failed
-			getNfcEventHandler().handleMessage(NfcEvent.NFC_RETRANSMIT_ERROR, null);
+			getNfcEventHandler().handleMessage(NfcEvent.RETRANSMIT_ERROR, null);
 			throw new TransceiveException(UNEXPECTED_ERROR);
 		}
 		
@@ -113,7 +113,7 @@ public abstract class NfcTransceiver {
 		
 		if (response.getStatus() == NfcMessage.ERROR) {
 			Log.d(TAG, "nfc error reported");
-			getNfcEventHandler().handleMessage(NfcEvent.NFC_ERROR_REPORTED, null);
+			getNfcEventHandler().handleMessage(NfcEvent.ERROR_REPORTED, null);
 			throw new TransceiveException(UNEXPECTED_ERROR);
 		}
 		
@@ -124,7 +124,7 @@ public abstract class NfcTransceiver {
 				
 				if (invalidSequenceNumber(response.getSequenceNumber()) && response.requestsRetransmission()) {
 					//this is a deadlock, since both parties are requesting a retransmit
-					getNfcEventHandler().handleMessage(NfcEvent.NFC_RETRANSMIT_ERROR, null);
+					getNfcEventHandler().handleMessage(NfcEvent.RETRANSMIT_ERROR, null);
 					throw new TransceiveException(UNEXPECTED_ERROR);
 				}
 				
@@ -139,7 +139,7 @@ public abstract class NfcTransceiver {
 		
 		if (!sendSuccess) {
 			//Requesting retransmit failed
-			getNfcEventHandler().handleMessage(NfcEvent.NFC_RETRANSMIT_ERROR, null);
+			getNfcEventHandler().handleMessage(NfcEvent.RETRANSMIT_ERROR, null);
 			throw new TransceiveException(UNEXPECTED_ERROR);
 		}
 		
@@ -192,10 +192,10 @@ public abstract class NfcTransceiver {
 		NfcMessage msg = new NfcMessage(response);
 		if (msg.getStatus() == NfcMessage.AID_SELECTED) {
 			//HostApduService recognized the AID
-			eventHandler.handleMessage(NfcEvent.NFC_INITIALIZED, null);
+			eventHandler.handleMessage(NfcEvent.INITIALIZED, null);
 		} else {
 			Log.d(TAG, "apdu response is not as expected!");
-			eventHandler.handleMessage(NfcEvent.NFC_INIT_FAILED, null);
+			eventHandler.handleMessage(NfcEvent.INIT_FAILED, null);
 		}
 	}
 	

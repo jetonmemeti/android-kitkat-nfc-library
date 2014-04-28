@@ -1,11 +1,11 @@
 package ch.uzh.csg.nfclib;
 
 public enum NfcEvent {
-	NFC_INIT_FAILED,
-	NFC_INITIALIZED,
-	NFC_COMMUNICATION_ERROR,
-	NFC_ERROR_REPORTED,
-	NFC_RETRANSMIT_ERROR;
+	INIT_FAILED,
+	INITIALIZED,
+	COMMUNICATION_ERROR,
+	ERROR_REPORTED,
+	RETRANSMIT_ERROR;
 	
 	//TODO: nfc message transceived event
 	//TODO: connection lost

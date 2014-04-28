@@ -82,7 +82,7 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 			isoDep.connect();
 			initNfc();
 		} catch (IOException e) {
-			getNfcEventHandler().handleMessage(NfcEvent.NFC_INIT_FAILED, null);
+			getNfcEventHandler().handleMessage(NfcEvent.INIT_FAILED, null);
 			Log.e(TAG, "Could not connnect isodep", e);
 		}
 	}
