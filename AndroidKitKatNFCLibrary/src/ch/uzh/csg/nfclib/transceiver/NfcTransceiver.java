@@ -65,16 +65,23 @@ public abstract class NfcTransceiver {
 			
 			if (response.requestsNextFragment()) {
 				Log.i(TAG, "sending next fragment");
-				continue;
 			} else {
-				response = retransmitIfRequested(nfcMessage, response);
+				if (response.requestsRetransmission()) {
+					response = retransmit(nfcMessage);
+				}
 				
-				messageReassembler.handleReassembly(response);
-				while (response.hasMoreFragments()) {
-					NfcMessage toSend = new NfcMessage(NfcMessage.GET_NEXT_FRAGMENT, (byte) 0x00, null);
-					response = write(toSend, false);
-					response = retransmitIfRequested(toSend, response);
+				if (response.requestsNextFragment()) {
+					continue;
+				} else {
 					messageReassembler.handleReassembly(response);
+					while (response.hasMoreFragments()) {
+						NfcMessage toSend = new NfcMessage(NfcMessage.GET_NEXT_FRAGMENT, (byte) 0x00, null);
+						response = write(toSend, false);
+						if (response.requestsRetransmission()) {
+							response = retransmit(toSend);
+						}
+						messageReassembler.handleReassembly(response);
+					}
 				}
 			}
 		}
@@ -82,16 +89,21 @@ public abstract class NfcTransceiver {
 		return messageReassembler.getData();
 	}
 	
-	private NfcMessage retransmitIfRequested(NfcMessage toSend, NfcMessage response) throws TransceiveException {
+	private NfcMessage retransmit(NfcMessage nfcMessage) throws TransceiveException {
 		boolean retransmissionSuccess = false;
-		for (int i=0; i<=Constants.MAX_RETRANSMITS; i++) {
-			if (response.requestsRetransmission()) {
-				Log.d(TAG, "retransmitting last nfc message since requested");
-				response = write(toSend, true);
-			} else {
+		int count = 0;
+		NfcMessage response = null;
+		
+		do {
+			Log.d(TAG, "retransmitting last nfc message since requested");
+			response = write(nfcMessage, true);
+			count++;
+			
+			if (!response.requestsRetransmission()) {
 				retransmissionSuccess = true;
+				break;
 			}
-		}
+		} while (count < Constants.MAX_RETRANSMITS);
 		
 		if (!retransmissionSuccess) {
 			//Retransmitting message failed
@@ -101,7 +113,7 @@ public abstract class NfcTransceiver {
 		
 		return response;
 	}
-
+	
 	private NfcMessage write(NfcMessage nfcMessage, boolean isRetransmission) throws IllegalArgumentException, TransceiveException {
 		if (!isRetransmission) {
 			lastSqNrSent++;
