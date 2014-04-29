@@ -115,6 +115,13 @@ public class NfcMessage extends ProtocolMessage {
 		return (getStatus() & NfcMessage.START_PROTOCOL) == NfcMessage.START_PROTOCOL;
 	}
 	
+	/**
+	 * Returns if this NfcMessage contains the AID_SELECTED bit.
+	 */
+	public boolean aidSelected() {
+		return (getStatus() & NfcMessage.AID_SELECTED) == NfcMessage.AID_SELECTED;
+	}
+	
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder("NfcMessage: ");
