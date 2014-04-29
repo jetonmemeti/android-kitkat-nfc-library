@@ -89,6 +89,8 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 
 	@Override
 	protected void initNfc() throws IOException {
+		//TODO: pay attention to this! may result in thread problems! first thread writing, then ontagdiscovered-->initnfc-->writes to isodep!!
+		
 		byte[] response = isoDep.transceive(createSelectAidApdu(getUserId()));
 		handleAidApduResponse(response);
 	}

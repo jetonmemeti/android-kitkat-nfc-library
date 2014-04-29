@@ -1,7 +1,8 @@
 package ch.uzh.csg.nfclib.transceiver;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.Queue;
 
 import android.app.Activity;
 import android.util.Log;
@@ -35,6 +36,9 @@ public abstract class NfcTransceiver {
 	private int lastSqNrReceived;
 	private int lastSqNrSent;
 	
+	private NfcMessage lastNfcMessageSent;
+	private Queue<NfcMessage> messageQueue;
+	
 	public NfcTransceiver(NfcEventHandler eventHandler, int maxWriteLength, long userId) {
 		this.eventHandler = eventHandler;
 		messageSplitter = new NfcMessageSplitter(maxWriteLength);
@@ -54,69 +58,50 @@ public abstract class NfcTransceiver {
 		if (bytes == null || bytes.length == 0)
 			throw new IllegalArgumentException(NULL_ARGUMENT);
 		
+		//TODO: catch exceptions, only forward after a given time (= session timeout)
+		//TODO: catch exception requires adopting most test cases!
+		
 		messageReassembler.clear();
 		lastSqNrReceived = lastSqNrSent = 0;
 		
-		ArrayList<NfcMessage> list = messageSplitter.getFragments(bytes);
-		Log.d(TAG, "writing: " + bytes.length + " bytes, " + list.size() + " fragments");
+		messageQueue = new LinkedList<NfcMessage>(messageSplitter.getFragments(bytes));
 		
-		for (NfcMessage nfcMessage : list) {
-			NfcMessage response = write(nfcMessage, false);
-			
-			if (response.requestsNextFragment()) {
-				Log.i(TAG, "sending next fragment");
-			} else {
-				if (response.requestsRetransmission()) {
-					response = retransmit(nfcMessage);
-				}
-				
-				if (response.requestsNextFragment()) {
-					continue;
-				} else {
-					// the last message has been sent to the HCE, now we receive the response
-					
-					getNfcEventHandler().handleMessage(NfcEvent.MESSAGE_SENT, null);
-					
-					messageReassembler.handleReassembly(response);
-					while (response.hasMoreFragments()) {
-						NfcMessage toSend = new NfcMessage(NfcMessage.GET_NEXT_FRAGMENT, (byte) 0x00, null);
-						response = write(toSend, false);
-						if (response.requestsRetransmission()) {
-							response = retransmit(toSend);
-						}
-						messageReassembler.handleReassembly(response);
-					}
-				}
-			}
+		Log.d(TAG, "writing: " + bytes.length + " bytes, " + messageQueue.size() + " fragments");
+		
+		while (!messageQueue.isEmpty()) {
+			transceive(messageQueue.poll());
 		}
 		
 		getNfcEventHandler().handleMessage(NfcEvent.MESSAGE_RECEIVED, null);
 		return messageReassembler.getData();
 	}
 	
-	private NfcMessage retransmit(NfcMessage nfcMessage) throws TransceiveException {
-		boolean retransmissionSuccess = false;
-		int count = 0;
-		NfcMessage response = null;
+	protected synchronized void transceive(NfcMessage nfcMessage) throws IllegalArgumentException, TransceiveException {
+		NfcMessage response = write(nfcMessage, false);
 		
-		do {
-			Log.d(TAG, "retransmitting last nfc message since requested");
-			response = write(nfcMessage, true);
-			count++;
-			
-			if (!response.requestsRetransmission()) {
-				retransmissionSuccess = true;
-				break;
+		if (response.requestsNextFragment()) {
+			Log.i(TAG, "sending next fragment");
+		} else {
+			if (response.requestsRetransmission()) {
+				response = retransmit(nfcMessage);
 			}
-		} while (count < Config.MAX_RETRANSMITS);
-		
-		if (!retransmissionSuccess) {
-			//Retransmitting message failed
-			getNfcEventHandler().handleMessage(NfcEvent.RETRANSMIT_ERROR, null);
-			throw new TransceiveException(UNEXPECTED_ERROR);
+			
+			if (!response.requestsNextFragment()) {
+				// the last message has been sent to the HCE, now we receive the response
+				
+				getNfcEventHandler().handleMessage(NfcEvent.MESSAGE_SENT, null);
+				
+				messageReassembler.handleReassembly(response);
+				while (response.hasMoreFragments()) {
+					NfcMessage toSend = new NfcMessage(NfcMessage.GET_NEXT_FRAGMENT, (byte) 0x00, null);
+					response = write(toSend, false);
+					if (response.requestsRetransmission()) {
+						response = retransmit(toSend);
+					}
+					messageReassembler.handleReassembly(response);
+				}
+			}
 		}
-		
-		return response;
 	}
 	
 	private NfcMessage write(NfcMessage nfcMessage, boolean isRetransmission) throws IllegalArgumentException, TransceiveException {
@@ -126,6 +111,7 @@ public abstract class NfcTransceiver {
 		
 		nfcMessage.setSequenceNumber((byte) lastSqNrSent);
 		
+		lastNfcMessageSent = nfcMessage;
 		NfcMessage response = writeRaw(nfcMessage);
 		
 		if (response.getStatus() == NfcMessage.ERROR) {
@@ -146,7 +132,8 @@ public abstract class NfcTransceiver {
 				}
 				
 				lastSqNrSent++;
-				response = writeRaw(new NfcMessage(NfcMessage.RETRANSMIT, (byte) lastSqNrSent, null));
+				lastNfcMessageSent = new NfcMessage(NfcMessage.RETRANSMIT, (byte) lastSqNrSent, null);
+				response = writeRaw(lastNfcMessageSent);
 			} else {
 				sendSuccess = true;
 				lastSqNrReceived++;
@@ -156,6 +143,31 @@ public abstract class NfcTransceiver {
 		
 		if (!sendSuccess) {
 			//Requesting retransmit failed
+			getNfcEventHandler().handleMessage(NfcEvent.RETRANSMIT_ERROR, null);
+			throw new TransceiveException(UNEXPECTED_ERROR);
+		}
+		
+		return response;
+	}
+
+	private NfcMessage retransmit(NfcMessage nfcMessage) throws TransceiveException {
+		boolean retransmissionSuccess = false;
+		int count = 0;
+		NfcMessage response = null;
+		
+		do {
+			Log.d(TAG, "retransmitting last nfc message since requested");
+			response = write(nfcMessage, true);
+			count++;
+			
+			if (!response.requestsRetransmission()) {
+				retransmissionSuccess = true;
+				break;
+			}
+		} while (count < Config.MAX_RETRANSMITS);
+		
+		if (!retransmissionSuccess) {
+			//Retransmitting message failed
 			getNfcEventHandler().handleMessage(NfcEvent.RETRANSMIT_ERROR, null);
 			throw new TransceiveException(UNEXPECTED_ERROR);
 		}
@@ -207,13 +219,40 @@ public abstract class NfcTransceiver {
 	
 	protected void handleAidApduResponse(byte[] response) {
 		NfcMessage msg = new NfcMessage(response);
-		if (msg.getStatus() == NfcMessage.AID_SELECTED) {
+		if (msg.aidSelected()) {
 			//HostApduService recognized the AID
-			eventHandler.handleMessage(NfcEvent.INITIALIZED, null);
+			if (msg.isStartProtocol()) {
+				eventHandler.handleMessage(NfcEvent.INITIALIZED, null);
+				resetStates();
+			} else {
+				//TODO: write last nfc message
+//				try {
+//					transceive(lastNfcMessageSent);
+//					
+//					while (!messageQueue.isEmpty()) {
+//						transceive(messageQueue.poll());
+//					}
+//					
+//					getNfcEventHandler().handleMessage(NfcEvent.MESSAGE_RECEIVED, null);
+//					return messageReassembler.getData();
+//				} catch (IllegalArgumentException e) {
+//					// TODO Auto-generated catch block
+//					e.printStackTrace();
+//				} catch (TransceiveException e) {
+//					// TODO Auto-generated catch block
+//					e.printStackTrace();
+//				}
+			}
 		} else {
 			Log.d(TAG, "apdu response is not as expected!");
 			eventHandler.handleMessage(NfcEvent.INIT_FAILED, null);
 		}
+	}
+	
+	private void resetStates() {
+		messageReassembler.clear();;
+		lastSqNrReceived = 0;
+		lastSqNrSent = 0;
 	}
 	
 	protected boolean isEnabled() {
