@@ -122,6 +122,7 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 //		
 //	}
 
+	//TODO: used?
 	private void cancel() {
 		if (isoDep != null && isoDep.isConnected()) {
 			try {
