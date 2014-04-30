@@ -8,6 +8,7 @@ import android.nfc.cardemulation.HostApduService;
 import android.os.Bundle;
 import android.util.Log;
 import ch.uzh.csg.nfclib.messages.NfcMessage;
+import ch.uzh.csg.nfclib.transceiver.NfcTransceiver;
 import ch.uzh.csg.nfclib.util.Config;
 import ch.uzh.csg.nfclib.util.Constants;
 import ch.uzh.csg.nfclib.util.NfcMessageReassembler;
@@ -48,6 +49,16 @@ public class CustomHostApduService extends HostApduService {
 		CustomHostApduService.messageHandler = messageHandler;
 		messageSplitter = new NfcMessageSplitter(MAX_WRITE_LENGTH);
 		messageReassembler = new NfcMessageReassembler();
+		
+		fragments = null;
+		index = 0;
+		userIdReceived = 0;
+		timeDeactivated = 0;
+		
+		lastSqNrReceived = 0;
+		lastSqNrSent = 0;
+		lastMessage = null;
+		nofRetransmissions = 0;
 	}
 	
 	/*
@@ -139,7 +150,7 @@ public class CustomHostApduService extends HostApduService {
 		
 		if (status == NfcMessage.ERROR) {
 			Log.d(TAG, "nfc error reported - returning null");
-			eventHandler.handleMessage(NfcEvent.ERROR_REPORTED, null);
+			eventHandler.handleMessage(NfcEvent.ERROR_REPORTED, NfcTransceiver.UNEXPECTED_ERROR);
 			return null;
 		}
 		
@@ -154,7 +165,7 @@ public class CustomHostApduService extends HostApduService {
 			
 			if (incoming.requestsRetransmission()) {
 				//this is a deadlock, since both parties are requesting a retransmit
-				eventHandler.handleMessage(NfcEvent.COMMUNICATION_ERROR, null);
+				eventHandler.handleMessage(NfcEvent.COMMUNICATION_ERROR, NfcTransceiver.UNEXPECTED_ERROR);
 				return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
 			}
 			
@@ -169,7 +180,7 @@ public class CustomHostApduService extends HostApduService {
 				return lastMessage;
 			} else {
 				//Requesting retransmit failed
-				eventHandler.handleMessage(NfcEvent.COMMUNICATION_ERROR, null);
+				eventHandler.handleMessage(NfcEvent.COMMUNICATION_ERROR, NfcTransceiver.UNEXPECTED_ERROR);
 				return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
 			}
 		} else {
@@ -224,7 +235,7 @@ public class CustomHostApduService extends HostApduService {
 				return toReturn;
 			} else {
 				Log.e(TAG, "IsoDep wants next fragment, but there is nothing to reply!");
-				eventHandler.handleMessage(NfcEvent.COMMUNICATION_ERROR, null);
+				eventHandler.handleMessage(NfcEvent.COMMUNICATION_ERROR, NfcTransceiver.UNEXPECTED_ERROR);
 				return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
 			}
 		default:
@@ -242,7 +253,7 @@ public class CustomHostApduService extends HostApduService {
 			return new NfcMessage(NfcMessage.RETRANSMIT, (byte) lastSqNrSent, null);
 		} else {
 			//Requesting retransmit failed
-			eventHandler.handleMessage(NfcEvent.COMMUNICATION_ERROR, null);
+			eventHandler.handleMessage(NfcEvent.COMMUNICATION_ERROR, NfcTransceiver.UNEXPECTED_ERROR);
 			return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
 		}
 	}
