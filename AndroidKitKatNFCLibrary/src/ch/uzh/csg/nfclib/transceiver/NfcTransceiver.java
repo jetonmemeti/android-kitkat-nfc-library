@@ -21,8 +21,8 @@ public abstract class NfcTransceiver {
 	private static final String TAG = "NfcTransceiver";
 	
 	public static final String NULL_ARGUMENT = "The message is null";
-	public static final String ISODEP_NOT_CONNECTED = "could not write message, IsoDep is no longer connected";
-	public static final String UNEXPECTED_ERROR = "Unexpected error occured while transceiving the message.";
+	public static final String ISODEP_NOT_CONNECTED = "Could not write message, IsoDep is no longer connected.";
+	public static final String UNEXPECTED_ERROR = "An error occured while transceiving the message.";
 	
 	private boolean enabled = false;
 	private NfcEventHandler eventHandler;
