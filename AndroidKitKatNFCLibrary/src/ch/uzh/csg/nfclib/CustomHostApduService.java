@@ -154,7 +154,7 @@ public class CustomHostApduService extends HostApduService {
 			
 			if (incoming.requestsRetransmission()) {
 				//this is a deadlock, since both parties are requesting a retransmit
-				eventHandler.handleMessage(NfcEvent.RETRANSMIT_ERROR, null);
+				eventHandler.handleMessage(NfcEvent.COMMUNICATION_ERROR, null);
 				return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
 			}
 			
@@ -169,7 +169,7 @@ public class CustomHostApduService extends HostApduService {
 				return lastMessage;
 			} else {
 				//Requesting retransmit failed
-				eventHandler.handleMessage(NfcEvent.RETRANSMIT_ERROR, null);
+				eventHandler.handleMessage(NfcEvent.COMMUNICATION_ERROR, null);
 				return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
 			}
 		} else {
@@ -242,7 +242,7 @@ public class CustomHostApduService extends HostApduService {
 			return new NfcMessage(NfcMessage.RETRANSMIT, (byte) lastSqNrSent, null);
 		} else {
 			//Requesting retransmit failed
-			eventHandler.handleMessage(NfcEvent.RETRANSMIT_ERROR, null);
+			eventHandler.handleMessage(NfcEvent.COMMUNICATION_ERROR, null);
 			return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
 		}
 	}

@@ -2,7 +2,6 @@ package ch.uzh.csg.nfclib.transceiver;
 
 import java.io.IOException;
 import java.util.LinkedList;
-import java.util.Queue;
 
 import android.app.Activity;
 import android.util.Log;
@@ -23,7 +22,7 @@ public abstract class NfcTransceiver {
 	
 	public static final String NULL_ARGUMENT = "The message is null";
 	public static final String ISODEP_NOT_CONNECTED = "could not write message, IsoDep is no longer connected";
-	public static final String UNEXPECTED_ERROR = "Unexpected error occured while transceiving a message.";
+	public static final String UNEXPECTED_ERROR = "Unexpected error occured while transceiving the message.";
 	
 	private boolean enabled = false;
 	private NfcEventHandler eventHandler;
@@ -37,7 +36,13 @@ public abstract class NfcTransceiver {
 	private int lastSqNrSent;
 	
 	private NfcMessage lastNfcMessageSent;
-	private Queue<NfcMessage> messageQueue;
+	private LinkedList<NfcMessage> messageQueue;
+	
+	private volatile boolean responseReady = false;
+	private volatile boolean working = false;
+	private volatile boolean returnErrorMessage = false;
+	
+	private Thread sessionResumeThread;
 	
 	public NfcTransceiver(NfcEventHandler eventHandler, int maxWriteLength, long userId) {
 		this.eventHandler = eventHandler;
@@ -52,31 +57,58 @@ public abstract class NfcTransceiver {
 	
 	protected abstract void initNfc() throws IOException;
 	
-	protected abstract NfcMessage writeRaw(NfcMessage nfcMessage) throws IllegalArgumentException, TransceiveException;
+	protected abstract NfcMessage writeRaw(NfcMessage nfcMessage) throws IllegalArgumentException, TransceiveException, IOException;
 	
-	public synchronized byte[] transceive(byte[] bytes) throws IllegalArgumentException, TransceiveException {
+	public synchronized void transceive(byte[] bytes) throws IllegalArgumentException {
 		if (bytes == null || bytes.length == 0)
 			throw new IllegalArgumentException(NULL_ARGUMENT);
 		
-		//TODO: catch exceptions, only forward after a given time (= session timeout)
-		//TODO: catch exception requires adopting most test cases!
-		
 		messageReassembler.clear();
 		lastSqNrReceived = lastSqNrSent = 0;
-		
+		responseReady = working = returnErrorMessage = false;
+		lastNfcMessageSent = null;
 		messageQueue = new LinkedList<NfcMessage>(messageSplitter.getFragments(bytes));
 		
 		Log.d(TAG, "writing: " + bytes.length + " bytes, " + messageQueue.size() + " fragments");
 		
-		while (!messageQueue.isEmpty()) {
-			transceive(messageQueue.poll());
-		}
+		working = true;
+		sessionResumeThread = new Thread(new SessionResumeTask());
+		sessionResumeThread.start();
 		
-		getNfcEventHandler().handleMessage(NfcEvent.MESSAGE_RECEIVED, null);
-		return messageReassembler.getData();
+		transceiveQueue();
+	}
+
+	private void transceiveQueue() {
+		while (!messageQueue.isEmpty()) {
+			try {
+				transceive(messageQueue.poll());
+			} catch (TransceiveException e) {
+				/*
+				 * When is thrown, there is no need to wait for retransmission
+				 * or re-init by nfc handshake.
+				 */
+				
+				working = false;
+				sessionResumeThread.interrupt();
+				getNfcEventHandler().handleMessage(e.getNfcEvent(), e.getMessage());
+				break;
+			} catch (IOException e) {
+				/*
+				 * This might occur due to a connection lost and can be followed
+				 * by a nfc handshake to re-init the nfc connection. Therefore
+				 * the session resume thread waits before returning the response
+				 * or an error message to the event handler.
+				 */
+				
+				working = false;
+				returnErrorMessage = true;
+				break;
+			}
+		}
 	}
 	
-	protected synchronized void transceive(NfcMessage nfcMessage) throws IllegalArgumentException, TransceiveException {
+	protected synchronized void transceive(NfcMessage nfcMessage) throws IllegalArgumentException, TransceiveException, IOException {
+		working = true;
 		NfcMessage response = write(nfcMessage, false);
 		
 		if (response.requestsNextFragment()) {
@@ -100,11 +132,13 @@ public abstract class NfcTransceiver {
 					}
 					messageReassembler.handleReassembly(response);
 				}
+				responseReady = true;
 			}
 		}
+		working = false;
 	}
 	
-	private NfcMessage write(NfcMessage nfcMessage, boolean isRetransmission) throws IllegalArgumentException, TransceiveException {
+	private NfcMessage write(NfcMessage nfcMessage, boolean isRetransmission) throws IllegalArgumentException, TransceiveException, IOException {
 		if (!isRetransmission) {
 			lastSqNrSent++;
 		}
@@ -116,8 +150,7 @@ public abstract class NfcTransceiver {
 		
 		if (response.getStatus() == NfcMessage.ERROR) {
 			Log.d(TAG, "nfc error reported");
-			getNfcEventHandler().handleMessage(NfcEvent.ERROR_REPORTED, null);
-			throw new TransceiveException(UNEXPECTED_ERROR);
+			throw new TransceiveException(NfcEvent.ERROR_REPORTED, UNEXPECTED_ERROR);
 		}
 		
 		boolean sendSuccess = false;
@@ -127,8 +160,7 @@ public abstract class NfcTransceiver {
 				
 				if (invalidSequenceNumber(response.getSequenceNumber()) && response.requestsRetransmission()) {
 					//this is a deadlock, since both parties are requesting a retransmit
-					getNfcEventHandler().handleMessage(NfcEvent.RETRANSMIT_ERROR, null);
-					throw new TransceiveException(UNEXPECTED_ERROR);
+					throw new TransceiveException(NfcEvent.COMMUNICATION_ERROR, UNEXPECTED_ERROR);
 				}
 				
 				lastSqNrSent++;
@@ -143,14 +175,13 @@ public abstract class NfcTransceiver {
 		
 		if (!sendSuccess) {
 			//Requesting retransmit failed
-			getNfcEventHandler().handleMessage(NfcEvent.RETRANSMIT_ERROR, null);
-			throw new TransceiveException(UNEXPECTED_ERROR);
+			throw new TransceiveException(NfcEvent.COMMUNICATION_ERROR, UNEXPECTED_ERROR);
 		}
 		
 		return response;
 	}
 
-	private NfcMessage retransmit(NfcMessage nfcMessage) throws TransceiveException {
+	private NfcMessage retransmit(NfcMessage nfcMessage) throws TransceiveException, IllegalArgumentException, IOException {
 		boolean retransmissionSuccess = false;
 		int count = 0;
 		NfcMessage response = null;
@@ -168,8 +199,7 @@ public abstract class NfcTransceiver {
 		
 		if (!retransmissionSuccess) {
 			//Retransmitting message failed
-			getNfcEventHandler().handleMessage(NfcEvent.RETRANSMIT_ERROR, null);
-			throw new TransceiveException(UNEXPECTED_ERROR);
+			throw new TransceiveException(NfcEvent.COMMUNICATION_ERROR, UNEXPECTED_ERROR);
 		}
 		
 		return response;
@@ -225,23 +255,8 @@ public abstract class NfcTransceiver {
 				eventHandler.handleMessage(NfcEvent.INITIALIZED, null);
 				resetStates();
 			} else {
-				//TODO: write last nfc message
-//				try {
-//					transceive(lastNfcMessageSent);
-//					
-//					while (!messageQueue.isEmpty()) {
-//						transceive(messageQueue.poll());
-//					}
-//					
-//					getNfcEventHandler().handleMessage(NfcEvent.MESSAGE_RECEIVED, null);
-//					return messageReassembler.getData();
-//				} catch (IllegalArgumentException e) {
-//					// TODO Auto-generated catch block
-//					e.printStackTrace();
-//				} catch (TransceiveException e) {
-//					// TODO Auto-generated catch block
-//					e.printStackTrace();
-//				}
+				messageQueue.addFirst(lastNfcMessageSent);
+				transceiveQueue();
 			}
 		} else {
 			Log.d(TAG, "apdu response is not as expected!");
@@ -269,6 +284,41 @@ public abstract class NfcTransceiver {
 	
 	protected long getUserId() {
 		return userId;
+	}
+
+	private class SessionResumeTask implements Runnable {
+		
+		public void run() {
+			long startTime = System.currentTimeMillis();
+			boolean cont = true;
+			while (cont && !Thread.currentThread().isInterrupted()) {
+				long now = System.currentTimeMillis();
+				if (working) {
+					try {
+						startTime = System.currentTimeMillis()+50;
+						Thread.sleep(50);
+					} catch (InterruptedException e) {
+					}
+				} else if (now - startTime < 2*Config.SESSION_RESUME_THRESHOLD) {
+					try {
+						Thread.sleep(50);
+					} catch (InterruptedException e) {
+					}
+				} else {
+					cont = false;
+				}
+			}
+			
+			if (getNfcEventHandler() == null)
+				return;
+			
+			if (responseReady) {
+				getNfcEventHandler().handleMessage(NfcEvent.MESSAGE_RECEIVED, messageReassembler.getData());
+			} else if (returnErrorMessage) {
+				getNfcEventHandler().handleMessage(NfcEvent.COMMUNICATION_ERROR, UNEXPECTED_ERROR);
+			}
+		}
+		
 	}
 	
 }

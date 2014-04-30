@@ -96,25 +96,28 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 	}
 
 	@Override
-	protected NfcMessage writeRaw(NfcMessage nfcMessage) throws IllegalArgumentException, TransceiveException {
-		if (isEnabled() && isoDep.isConnected()) {
+	protected NfcMessage writeRaw(NfcMessage nfcMessage) throws IllegalArgumentException, TransceiveException, IOException {
+		if (!isEnabled()) {
+			Log.d(TAG, "could not write message, isodep is not enabled");
+			throw new TransceiveException(NfcEvent.COMMUNICATION_ERROR, ISODEP_NOT_CONNECTED);
+		}
+		
+		if (isoDep.isConnected()) {
 			if (nfcMessage == null) {
 				throw new IllegalArgumentException(NULL_ARGUMENT);
 			} else if (nfcMessage.getData().length > isoDep.getMaxTransceiveLength()) {
 				throw new IllegalArgumentException("The message length exceeds the maximum capacity of " + isoDep.getMaxTransceiveLength() + " bytes.");
 			} else if (nfcMessage.getData().length > MAX_WRITE_LENGTH) {
-				throw new IllegalArgumentException("The argument length exceeds the maximum capacity of " + MAX_WRITE_LENGTH + " bytes.");
+				throw new IllegalArgumentException("The message length exceeds the maximum capacity of " + MAX_WRITE_LENGTH + " bytes.");
 			}
 			
-			try {
-				return new NfcMessage(isoDep.transceive(nfcMessage.getData()));
-			} catch (IOException e) {
-				Log.d(TAG, "could not write message", e);
-				throw new TransceiveException("Could not write message: "+e.getMessage());
-			}
+			return new NfcMessage(isoDep.transceive(nfcMessage.getData()));
 		} else {
 			Log.d(TAG, "could not write message, isodep is no longer connected");
-			throw new TransceiveException(ISODEP_NOT_CONNECTED);
+			/*
+			 * throw new IOException so that IsoDep waits for a resume
+			 */
+			throw new IOException(ISODEP_NOT_CONNECTED);
 		}
 	}
 	
