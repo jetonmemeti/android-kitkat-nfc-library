@@ -243,7 +243,8 @@ public class CustomHostApduService extends HostApduService {
 				//TODO: does this ever occur?
 			
 		}
-		//TODO: fix this!
+		//TODO: handle, since this is an error!! should not receive something else than above
+		//TODO: does this ever occur?
 		return new NfcMessage(NfcMessage.DEFAULT, (byte) 0x00, null);
 	}
 
