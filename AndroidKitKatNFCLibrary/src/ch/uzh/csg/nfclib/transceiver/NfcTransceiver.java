@@ -265,9 +265,19 @@ public abstract class NfcTransceiver {
 	}
 	
 	private void resetStates() {
-		messageReassembler.clear();;
+		messageReassembler.clear();
 		lastSqNrReceived = 0;
 		lastSqNrSent = 0;
+		lastNfcMessageSent = null;
+		messageQueue = null;
+		
+		responseReady = false;
+		working = false;
+		returnErrorMessage = false;
+		
+		if (sessionResumeThread != null && (sessionResumeThread.isAlive() | sessionResumeThread.isInterrupted())) {
+			sessionResumeThread.interrupt();
+		}
 	}
 	
 	protected boolean isEnabled() {
@@ -299,7 +309,7 @@ public abstract class NfcTransceiver {
 						Thread.sleep(50);
 					} catch (InterruptedException e) {
 					}
-				} else if (now - startTime < 2*Config.SESSION_RESUME_THRESHOLD) {
+				} else if (now - startTime < Config.SESSION_RESUME_THRESHOLD) {
 					try {
 						Thread.sleep(50);
 					} catch (InterruptedException e) {
