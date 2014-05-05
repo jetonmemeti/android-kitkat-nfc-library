@@ -69,9 +69,11 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 
 	@Override
 	public void disable(Activity activity) {
-		if (isEnabled() && nfcAdapter != null) {
+		if (isEnabled()) {
 			cancel();
-			nfcAdapter.disableReaderMode(activity);
+			if (nfcAdapter != null)
+				nfcAdapter.disableReaderMode(activity);
+			
 			setEnabled(false);
 		}
 	}
@@ -121,7 +123,6 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 		}
 	}
 	
-	//TODO: used?
 	private void cancel() {
 		if (isoDep != null && isoDep.isConnected()) {
 			try {
