@@ -141,6 +141,10 @@ public abstract class NfcTransceiver {
 	private NfcMessage write(NfcMessage nfcMessage, boolean isRetransmission) throws IllegalArgumentException, TransceiveException, IOException {
 		if (!isRetransmission) {
 			lastSqNrSent++;
+			if (lastSqNrSent > 255) {
+				// reset the counter, because next message will have sq nr 1!
+				lastSqNrSent = 1;
+			}
 		}
 		
 		nfcMessage.setSequenceNumber((byte) lastSqNrSent);
@@ -155,20 +159,29 @@ public abstract class NfcTransceiver {
 		
 		boolean sendSuccess = false;
 		for (int i=0; i<=Config.MAX_RETRANSMITS; i++) {
-			if (responseCorrupt(response) || invalidSequenceNumber(response.getSequenceNumber())) {
+			if (responseCorrupt(response) || response.invalidSequenceNumber(lastSqNrReceived+1)) {
 				Log.d(TAG, "requesting retransmission because answer was not as expected");
 				
-				if (invalidSequenceNumber(response.getSequenceNumber()) && response.requestsRetransmission()) {
+				if (response.invalidSequenceNumber(lastSqNrReceived+1) && response.requestsRetransmission()) {
 					//this is a deadlock, since both parties are requesting a retransmit
 					throw new TransceiveException(NfcEvent.COMMUNICATION_ERROR, UNEXPECTED_ERROR);
 				}
 				
 				lastSqNrSent++;
+				if (lastSqNrSent > 255) {
+					// reset the counter, because next message will have sq nr 1!
+					lastSqNrSent = 1;
+				}
+				
 				lastNfcMessageSent = new NfcMessage(NfcMessage.RETRANSMIT, (byte) lastSqNrSent, null);
 				response = writeRaw(lastNfcMessageSent);
 			} else {
 				sendSuccess = true;
 				lastSqNrReceived++;
+				if (lastSqNrReceived == 255) {
+					// reset the counter, because next message will have sq nr 1!
+					lastSqNrReceived = 0;
+				}
 				break;
 			}
 		}
@@ -208,29 +221,6 @@ public abstract class NfcTransceiver {
 	private boolean responseCorrupt(NfcMessage response) {
 		return response.getData() == null || response.getData().length < NfcMessage.HEADER_LENGTH; 
 	}
-	
-	private boolean invalidSequenceNumber(byte sequenceNumber) {
-		/*
-		 * Because Java does not support unsigned bytes, we have to convert the
-		 * (signed) byte to an integer in order to get values from 0 to 255
-		 * (instead of -128 to 127)
-		 */
-		int temp = sequenceNumber & 0xFF;
-		if (temp == 255) {
-			if (lastSqNrReceived == 254)
-				return false;
-			else
-				return true;
-		}
-		
-		if (lastSqNrReceived == 255)
-			lastSqNrReceived = 0;
-		
-		return temp != (lastSqNrReceived+1);
-	}
-	
-	//TODO: what about?
-//	public abstract void reset();
 	
 	/**
 	 * To initiate a NFC connection, the NFC reader sends a "SELECT AID" APDU to

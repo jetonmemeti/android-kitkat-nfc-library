@@ -154,13 +154,15 @@ public class CustomHostApduService extends HostApduService {
 			return null;
 		}
 		
-		//TODO: pay attention to 255+1 --> should result in 1, not 0!!
-		//TODO: pay attention to 255+1 --> should result in 1, not 0!! as well in NfcTransceiver!!!
 		lastSqNrSent++;
+		if (lastSqNrSent > 255) {
+			// reset the counter, because next message will have sq nr 1!
+			lastSqNrSent = 1;
+		}
 		
 		if (corruptMessage(bytes)) {
 			return returnRetransmissionOrError();
-		} else if (invalidSequenceNumber(incoming.getSequenceNumber())) {
+		} else if (incoming.invalidSequenceNumber(lastSqNrReceived+1)) {
 			Log.d(TAG, "requesting retransmission because answer was not as expected");
 			
 			if (incoming.requestsRetransmission()) {
@@ -172,10 +174,14 @@ public class CustomHostApduService extends HostApduService {
 			return returnRetransmissionOrError();
 		} else if (incoming.requestsRetransmission()) {
 			lastSqNrReceived++;
+			if (lastSqNrReceived == 255) {
+				// reset the counter, because next message will have sq nr 1!
+				lastSqNrReceived = 0;
+			}
+			
 			if (nofRetransmissions < Config.MAX_RETRANSMITS) {
 				nofRetransmissions++;
-				// decrement, since it should have the same sq nr, but was
-				// incremented above
+				// decrement, since it should have the same sq nr, but was incremented above
 				lastSqNrSent--;
 				return lastMessage;
 			} else {
@@ -188,6 +194,10 @@ public class CustomHostApduService extends HostApduService {
 		}
 		
 		lastSqNrReceived++;
+		if (lastSqNrReceived == 255) {
+			// reset the counter, because next message will have sq nr 1!
+			lastSqNrReceived = 0;
+		}
 		
 		NfcMessage toReturn;
 		
@@ -263,27 +273,6 @@ public class CustomHostApduService extends HostApduService {
 		return bytes == null || bytes.length < NfcMessage.HEADER_LENGTH;
 	}
 	
-	//TODO: code duplicated from NfcTransceiver! move to NfcMessage
-	private boolean invalidSequenceNumber(byte sequenceNumber) {
-		/*
-		 * Because Java does not support unsigned bytes, we have to convert the
-		 * (signed) byte to an integer in order to get values from 0 to 255
-		 * (instead of -128 to 127)
-		 */
-		int temp = sequenceNumber & 0xFF;
-		if (temp == 255) {
-			if (lastSqNrReceived == 254)
-				return false;
-			else
-				return true;
-		}
-		
-		if (lastSqNrReceived == 255)
-			lastSqNrReceived = 0;
-		
-		return temp != (lastSqNrReceived+1);
-	}
-
 	@Override
 	public void onDeactivated(int reason) {
 		Log.d(TAG, "deactivated due to " + (reason == HostApduService.DEACTIVATION_LINK_LOSS ? "link loss" : "deselected") + "("+reason+")");

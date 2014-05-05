@@ -122,6 +122,21 @@ public class NfcMessage extends ProtocolMessage {
 		return (getStatus() & NfcMessage.AID_SELECTED) == NfcMessage.AID_SELECTED;
 	}
 	
+	/**
+	 * Returns if the sequence number of this NfcMessage does not match the
+	 * given sequence number, i.e., if the sequence number of this NfcMessage is
+	 * invalid.
+	 */
+	public boolean invalidSequenceNumber(int expectedSequenceNumber) {
+		/*
+		 * Because Java does not support unsigned bytes, we have to convert the
+		 * (signed) byte to an integer in order to get values from 0 to 255
+		 * (instead of -128 to 127)
+		 */
+		int temp = getSequenceNumber() & 0xFF;
+		return temp != expectedSequenceNumber;
+	}
+	
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder("NfcMessage: ");
