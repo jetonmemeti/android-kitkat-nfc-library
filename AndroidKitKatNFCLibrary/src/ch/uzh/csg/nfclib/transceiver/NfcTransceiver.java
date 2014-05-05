@@ -55,9 +55,22 @@ public abstract class NfcTransceiver {
 	
 	public abstract void disable(Activity activity);
 	
-	protected abstract void initNfc() throws IOException;
+	protected abstract byte[] writeRaw(byte[] bytes) throws IllegalArgumentException, TransceiveException, IOException;
 	
-	protected abstract NfcMessage writeRaw(NfcMessage nfcMessage) throws IllegalArgumentException, TransceiveException, IOException;
+	protected void initNfc() throws IOException {
+		//TODO: pay attention to this! may result in thread problems! first thread writing, then ontagdiscovered-->initnfc-->writes to isodep!!
+		
+		try {
+			byte[] response = writeRaw(createSelectAidApdu(getUserId()));
+			handleAidApduResponse(response);
+		} catch (IllegalArgumentException e) {
+			Log.e(TAG, "Illegal argument: ", e);
+			getNfcEventHandler().handleMessage(NfcEvent.INIT_FAILED, null);
+		} catch (TransceiveException e) {
+			Log.e(TAG, "TransceiveException: ", e);
+			getNfcEventHandler().handleMessage(NfcEvent.INIT_FAILED, null);
+		}
+	}
 	
 	public synchronized void transceive(byte[] bytes) throws IllegalArgumentException {
 		if (bytes == null || bytes.length == 0)
@@ -150,7 +163,7 @@ public abstract class NfcTransceiver {
 		nfcMessage.setSequenceNumber((byte) lastSqNrSent);
 		
 		lastNfcMessageSent = nfcMessage;
-		NfcMessage response = writeRaw(nfcMessage);
+		NfcMessage response = new NfcMessage(writeRaw(nfcMessage.getData()));
 		
 		if (response.getStatus() == NfcMessage.ERROR) {
 			Log.d(TAG, "nfc error reported");
@@ -174,7 +187,7 @@ public abstract class NfcTransceiver {
 				}
 				
 				lastNfcMessageSent = new NfcMessage(NfcMessage.RETRANSMIT, (byte) lastSqNrSent, null);
-				response = writeRaw(lastNfcMessageSent);
+				response = new NfcMessage(writeRaw(lastNfcMessageSent.getData()));
 			} else {
 				sendSuccess = true;
 				lastSqNrReceived++;
