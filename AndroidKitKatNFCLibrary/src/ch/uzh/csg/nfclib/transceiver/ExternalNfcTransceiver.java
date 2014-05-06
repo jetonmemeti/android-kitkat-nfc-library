@@ -47,7 +47,7 @@ public class ExternalNfcTransceiver extends NfcTransceiver {
 	}
 	
 	/*
-	 * This constructor is only for test purposes, in order to mock the IsoDep.
+	 * This constructor is only for test purposes, in order to mock the Reader.
 	 * For productive use please use the constructor above, otherwise the NFC
 	 * will not work.
 	 */
@@ -55,7 +55,7 @@ public class ExternalNfcTransceiver extends NfcTransceiver {
 		this(eventHandler, userId);
 		this.reader = reader;
 	}
-
+	
 	@Override
 	public void enable(Activity activity) throws NoNfcException, NfcNotEnabledException {
 		Log.d(TAG, "enable NFC");
@@ -116,23 +116,23 @@ public class ExternalNfcTransceiver extends NfcTransceiver {
 			for (int i=0; i<MAX_RAW_RETRIES; i++) {
 				long start = System.currentTimeMillis();
 				try { 
+					//TODO: might recvBuffer be higher?? probably yes! see CHAS!
 					byte[] recvBuffer = new byte[MAX_WRITE_LENGTH];
 					length = reader.transmit(0, bytes, bytes.length, recvBuffer, recvBuffer.length);
 					if (length > 0) {
 						result = new byte[length];
 						System.arraycopy(recvBuffer, 0, result, 0, length);
 						break;
+					} else {
+						long wait = 100 - (System.currentTimeMillis() - start);
+						if (wait > 0) {
+							Thread.sleep(wait);
+						}
 					}
 				} catch (ReaderException e) {
-				}
-				
-				long wait = 100 - (System.currentTimeMillis() - start);
-				if (wait > 0) {
-					try {
-						Thread.sleep(wait);
-					} catch (InterruptedException e) {
-						throw new IOException("ExternalNfcTransceiver failed to transceive raw message.");
-					}
+					throw new IOException("ExternalNfcTransceiver failed to transceive raw message.");
+				} catch (InterruptedException e) {
+					throw new IOException("ExternalNfcTransceiver failed to transceive raw message.");
 				}
 			}
 			
