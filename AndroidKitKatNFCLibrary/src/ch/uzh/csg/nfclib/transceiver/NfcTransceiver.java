@@ -21,7 +21,7 @@ public abstract class NfcTransceiver {
 	private static final String TAG = "NfcTransceiver";
 	
 	public static final String NULL_ARGUMENT = "The message is null";
-	public static final String ISODEP_NOT_CONNECTED = "Could not write message, IsoDep is no longer connected.";
+	public static final String NFCTRANSCEIVER_NOT_CONNECTED = "Could not write message, NfcTransceiver is not connected.";
 	public static final String UNEXPECTED_ERROR = "An error occured while transceiving the message.";
 	
 	private boolean enabled = false;
@@ -120,7 +120,7 @@ public abstract class NfcTransceiver {
 		}
 	}
 	
-	protected synchronized void transceive(NfcMessage nfcMessage) throws IllegalArgumentException, TransceiveException, IOException {
+	private synchronized void transceive(NfcMessage nfcMessage) throws IllegalArgumentException, TransceiveException, IOException {
 		working = true;
 		NfcMessage response = write(nfcMessage, false);
 		
