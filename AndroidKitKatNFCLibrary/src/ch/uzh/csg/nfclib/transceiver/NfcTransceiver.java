@@ -92,6 +92,8 @@ public abstract class NfcTransceiver {
 	}
 
 	private void transceiveQueue() {
+		working = true;
+		
 		while (!messageQueue.isEmpty()) {
 			try {
 				transceive(messageQueue.poll());
@@ -101,7 +103,6 @@ public abstract class NfcTransceiver {
 				 * or re-init by nfc handshake.
 				 */
 				
-				working = false;
 				sessionResumeThread.interrupt();
 				getNfcEventHandler().handleMessage(e.getNfcEvent(), e.getMessage());
 				break;
@@ -113,15 +114,15 @@ public abstract class NfcTransceiver {
 				 * or an error message to the event handler.
 				 */
 				
-				working = false;
 				returnErrorMessage = true;
 				break;
 			}
 		}
+		
+		working = false;
 	}
 	
 	private synchronized void transceive(NfcMessage nfcMessage) throws IllegalArgumentException, TransceiveException, IOException {
-		working = true;
 		NfcMessage response = write(nfcMessage, false);
 		
 		if (response.requestsNextFragment()) {
@@ -148,7 +149,6 @@ public abstract class NfcTransceiver {
 				responseReady = true;
 			}
 		}
-		working = false;
 	}
 	
 	private NfcMessage write(NfcMessage nfcMessage, boolean isRetransmission) throws IllegalArgumentException, TransceiveException, IOException {
@@ -278,7 +278,7 @@ public abstract class NfcTransceiver {
 		working = false;
 		returnErrorMessage = false;
 		
-		if (sessionResumeThread != null && (sessionResumeThread.isAlive() | sessionResumeThread.isInterrupted())) {
+		if (sessionResumeThread != null && sessionResumeThread.isAlive() && !sessionResumeThread.isInterrupted()) {
 			sessionResumeThread.interrupt();
 		}
 	}
@@ -304,8 +304,9 @@ public abstract class NfcTransceiver {
 		public void run() {
 			long startTime = System.currentTimeMillis();
 			boolean cont = true;
+			long now;
 			while (cont && !Thread.currentThread().isInterrupted()) {
-				long now = System.currentTimeMillis();
+				now = System.currentTimeMillis();
 				if (working) {
 					try {
 						startTime = System.currentTimeMillis()+50;
