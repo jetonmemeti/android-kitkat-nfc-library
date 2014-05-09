@@ -22,7 +22,7 @@ public class CustomHostApduService extends HostApduService {
 	/*
 	 * NXP chip supports max 255 bytes (10 bytes is header of nfc protocol)
 	 */
-	protected static final int MAX_WRITE_LENGTH = 245;
+	public static final int MAX_WRITE_LENGTH = 245;
 	
 	private static Activity hostActivity;
 	private static NfcEventHandler eventHandler;
@@ -249,13 +249,11 @@ public class CustomHostApduService extends HostApduService {
 				return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
 			}
 		default:
-				//TODO: handle, since this is an error!! should not receive something else than above
-				//TODO: does this ever occur?
+			//TODO: does this ever occur?
+			//TODO: handle, since this is not correct!! should not receive something else
+			return new NfcMessage(NfcMessage.DEFAULT, (byte) 0x00, null);
 			
 		}
-		//TODO: handle, since this is an error!! should not receive something else than above
-		//TODO: does this ever occur?
-		return new NfcMessage(NfcMessage.DEFAULT, (byte) 0x00, null);
 	}
 
 	private NfcMessage returnRetransmissionOrError() {

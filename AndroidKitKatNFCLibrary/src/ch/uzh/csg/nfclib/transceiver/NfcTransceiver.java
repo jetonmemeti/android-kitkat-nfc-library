@@ -58,8 +58,6 @@ public abstract class NfcTransceiver {
 	protected abstract byte[] writeRaw(byte[] bytes) throws IllegalArgumentException, TransceiveException, IOException;
 	
 	protected void initNfc() throws IOException {
-		//TODO: pay attention to this! may result in thread problems! first thread writing, then ontagdiscovered-->initnfc-->writes to isodep!!
-		
 		try {
 			byte[] response = writeRaw(createSelectAidApdu(getUserId()));
 			handleAidApduResponse(response);

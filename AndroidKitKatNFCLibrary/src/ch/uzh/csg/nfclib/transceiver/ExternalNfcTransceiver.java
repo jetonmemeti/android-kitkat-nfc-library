@@ -11,6 +11,7 @@ import android.content.IntentFilter;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.util.Log;
+import ch.uzh.csg.nfclib.CustomHostApduService;
 import ch.uzh.csg.nfclib.NfcEvent;
 import ch.uzh.csg.nfclib.NfcEventHandler;
 import ch.uzh.csg.nfclib.exceptions.NfcNotEnabledException;
@@ -116,8 +117,7 @@ public class ExternalNfcTransceiver extends NfcTransceiver {
 			for (int i=0; i<MAX_RAW_RETRIES; i++) {
 				long start = System.currentTimeMillis();
 				try { 
-					//TODO: might recvBuffer be higher?? probably yes! see CHAS!
-					byte[] recvBuffer = new byte[MAX_WRITE_LENGTH];
+					byte[] recvBuffer = new byte[CustomHostApduService.MAX_WRITE_LENGTH];
 					length = reader.transmit(0, bytes, bytes.length, recvBuffer, recvBuffer.length);
 					if (length > 0) {
 						result = new byte[length];
