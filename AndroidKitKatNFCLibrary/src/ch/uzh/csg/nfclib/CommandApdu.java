@@ -4,6 +4,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 import ch.uzh.csg.nfclib.util.Constants;
+import ch.uzh.csg.nfclib.util.Utils;
 
 //TODO: javadoc
 public class CommandApdu {
@@ -14,7 +15,7 @@ public class CommandApdu {
 		 * http://www.cardwerk.com/smartcards/smartcard_standard_ISO7816-4_5_basic_organizations.aspx#chap5_3
 		 */
 		
-		byte[] userIdBytes = getLongAsBytes(userId);
+		byte[] userIdBytes = Utils.getLongAsBytes(userId);
 		
 		//  CLA_INS_P1_P2 has by the specification 4 bytes
 		byte[] temp = new byte[Constants.CLA_INS_P1_P2.length + 1 + Constants.AID_MBPS.length + userIdBytes.length + 1];
@@ -31,10 +32,6 @@ public class CommandApdu {
 		temp[temp.length - 1] = 2;
 		
 		return temp;
-	}
-	
-	private static byte[] getLongAsBytes(long l) {
-		return ByteBuffer.allocate(Long.SIZE / Byte.SIZE).putLong(l).array();
 	}
 	
 	public static long getUserId(byte[] bytes) {
