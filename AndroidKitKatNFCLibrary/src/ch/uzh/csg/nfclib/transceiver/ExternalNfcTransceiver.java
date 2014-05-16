@@ -176,6 +176,19 @@ public class ExternalNfcTransceiver extends NfcTransceiver {
 		reader.setProtocol(0, Reader.PROTOCOL_T0 | Reader.PROTOCOL_T1);
 	}
 	
+	public static boolean isExternalReaderAttached(Activity activity) {
+		UsbManager manager = (UsbManager) activity.getSystemService(Context.USB_SERVICE);
+		Reader reader = new Reader(manager);
+		
+		for (UsbDevice device : manager.getDeviceList().values()) {
+			if (reader.isSupported(device)) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
+	
 	private BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
 
 		@Override
