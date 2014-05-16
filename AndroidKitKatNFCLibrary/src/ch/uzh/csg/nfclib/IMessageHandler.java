@@ -1,5 +1,6 @@
 package ch.uzh.csg.nfclib;
 
+//TODO: javadoc
 public interface IMessageHandler {
 	
 	//blocking! avoid long calculations

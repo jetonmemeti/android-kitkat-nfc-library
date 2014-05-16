@@ -9,6 +9,9 @@ import ch.uzh.csg.nfclib.messages.NfcMessage;
 /**
  * Is responsible for NfcMessage (or byte buffer) fragmentation in order to not
  * exceed the maximum allowed message length by the underlying NFC technology.
+ * 
+ * @author Jeton Memeti
+ * 
  */
 public class NfcMessageSplitter {
 

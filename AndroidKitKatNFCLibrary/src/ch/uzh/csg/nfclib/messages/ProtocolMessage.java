@@ -6,6 +6,9 @@ import org.apache.commons.lang3.ArrayUtils;
  * This is the abstract base type of the protocol messages send via NFC to
  * accomplish a transaction. The ProtocolMessage consists of a header and an
  * arbitrary long payload.
+ * 
+ * @author Jeton Memeti
+ * 
  */
 public abstract class ProtocolMessage {
 	

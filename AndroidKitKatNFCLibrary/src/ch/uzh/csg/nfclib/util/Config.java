@@ -1,5 +1,6 @@
 package ch.uzh.csg.nfclib.util;
 
+//TODO: javadoc
 public class Config {
 	
 	/*

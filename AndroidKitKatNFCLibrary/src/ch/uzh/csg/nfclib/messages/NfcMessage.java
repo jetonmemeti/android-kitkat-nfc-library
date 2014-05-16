@@ -9,6 +9,9 @@ package ch.uzh.csg.nfclib.messages;
  * etc.) to transmit more than one status to the counterpart. The header
  * contains also a sequence number in order to detect multiple transmission of
  * the same messages or the lost of a message.
+ * 
+ * @author Jeton Memeti
+ * 
  */
 public class NfcMessage extends ProtocolMessage {
 	

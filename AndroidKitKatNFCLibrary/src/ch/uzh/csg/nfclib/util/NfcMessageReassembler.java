@@ -5,6 +5,9 @@ import ch.uzh.csg.nfclib.messages.NfcMessage;
 /**
  * This class is responsible for reassembling NFC messages which have been
  * fragmented in order to be send.
+ * 
+ * @author Jeton Memeti
+ * 
  */
 public class NfcMessageReassembler {
 

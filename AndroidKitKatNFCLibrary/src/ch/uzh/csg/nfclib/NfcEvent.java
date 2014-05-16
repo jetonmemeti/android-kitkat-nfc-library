@@ -1,5 +1,6 @@
 package ch.uzh.csg.nfclib;
 
+//TODO: javadoc
 public enum NfcEvent {
 	INIT_FAILED,
 	INITIALIZED,
