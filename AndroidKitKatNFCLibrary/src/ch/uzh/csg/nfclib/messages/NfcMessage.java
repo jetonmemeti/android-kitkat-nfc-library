@@ -113,7 +113,7 @@ public class NfcMessage extends ProtocolMessage {
 	 * Returns if this NfcMessage requests starting a new session. If this is
 	 * not the case, than the old session has to be resumed. (Returns if the
 	 * corresponding bit (see NfcMessage.START_PROTOCOL) in the header is set to
-	 * 1 ).
+	 * 1).
 	 */
 	public boolean isStartProtocol() {
 		return (getStatus() & NfcMessage.START_PROTOCOL) == NfcMessage.START_PROTOCOL;
