@@ -2,6 +2,7 @@ package ch.uzh.csg.nfclib.util;
 
 import java.nio.ByteBuffer;
 
+//TODO: needed? already copied to custom-serialization
 /**
  * This is a class for miscellaneous functions.
  * 
