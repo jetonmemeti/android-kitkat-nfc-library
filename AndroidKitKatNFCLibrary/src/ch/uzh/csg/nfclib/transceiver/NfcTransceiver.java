@@ -321,12 +321,16 @@ public abstract class NfcTransceiver {
 				}
 			}
 			
+			//TODO: is this needed?
 			if (getNfcEventHandler() == null)
 				return;
 			
 			if (responseReady) {
 				getNfcEventHandler().handleMessage(NfcEvent.MESSAGE_RECEIVED, messageReassembler.getData());
 			} else if (returnErrorMessage) {
+				
+				//TODO: refactor this, change to connection lost --> adopt tests! handle connection lost in payment library --> might be followed by resume
+				
 				getNfcEventHandler().handleMessage(NfcEvent.COMMUNICATION_ERROR, UNEXPECTED_ERROR);
 			}
 		}
