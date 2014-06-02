@@ -256,6 +256,13 @@ public abstract class NfcTransceiver {
 				eventHandler.handleMessage(NfcEvent.INITIALIZED, null);
 				resetStates();
 			} else {
+				/*
+				 * decrement because lastNfcMessageSent has the same sequence
+				 * number as before and the following messages should have
+				 * consecutive sq nrs but was incremented before exceptions was
+				 * thrown
+				 */
+				lastSqNrSent--;
 				messageQueue.addFirst(lastNfcMessageSent);
 				transceiveQueue();
 			}
@@ -320,10 +327,6 @@ public abstract class NfcTransceiver {
 					cont = false;
 				}
 			}
-			
-			//TODO: is this needed?
-			if (getNfcEventHandler() == null)
-				return;
 			
 			if (responseReady) {
 				getNfcEventHandler().handleMessage(NfcEvent.MESSAGE_RECEIVED, messageReassembler.getData());

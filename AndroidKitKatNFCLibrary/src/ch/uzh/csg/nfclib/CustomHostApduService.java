@@ -168,15 +168,21 @@ public class CustomHostApduService extends HostApduService {
 		if (corruptMessage(bytes)) {
 			return returnRetransmissionOrError();
 		} else if (incoming.invalidSequenceNumber(lastSqNrReceived+1)) {
-			Log.d(TAG, "requesting retransmission because answer was not as expected");
-			
-			if (incoming.requestsRetransmission()) {
-				//this is a deadlock, since both parties are requesting a retransmit
-				eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcTransceiver.UNEXPECTED_ERROR);
-				return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
+			if ((incoming.getSequenceNumber() & 0xFF) == lastSqNrReceived) {
+				// same sequence number, so this is a retransmit because of an interrupted connection
+				lastSqNrSent--;
+				return lastMessage;
+			} else {
+				Log.d(TAG, "requesting retransmission because answer was not as expected");
+				
+				if (incoming.requestsRetransmission()) {
+					//this is a deadlock, since both parties are requesting a retransmit
+					eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcTransceiver.UNEXPECTED_ERROR);
+					return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
+				}
+				
+				return returnRetransmissionOrError();
 			}
-			
-			return returnRetransmissionOrError();
 		} else if (incoming.requestsRetransmission()) {
 			lastSqNrReceived++;
 			if (lastSqNrReceived == 255) {
