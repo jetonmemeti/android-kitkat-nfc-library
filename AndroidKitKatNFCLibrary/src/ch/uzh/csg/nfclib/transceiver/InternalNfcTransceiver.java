@@ -92,7 +92,7 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 	protected byte[] writeRaw(byte[] bytes) throws IllegalArgumentException, TransceiveException, IOException {
 		if (!isEnabled()) {
 			Log.d(TAG, "could not write message, isodep is not enabled");
-			throw new TransceiveException(NfcEvent.COMMUNICATION_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
+			throw new TransceiveException(NfcEvent.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
 		}
 		
 		if (isoDep.isConnected()) {

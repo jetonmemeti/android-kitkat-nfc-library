@@ -43,6 +43,9 @@ public class CustomHostApduService extends HostApduService {
 	private static NfcMessage lastMessage;
 	private static int nofRetransmissions = 0;
 	
+	private static Thread sessionResumeThread = null;
+	private static volatile boolean working = false;
+	
 	public static void init(Activity activity, NfcEventHandler eventHandler, IMessageHandler messageHandler) {
 		hostActivity = activity;
 		CustomHostApduService.eventHandler = eventHandler;
@@ -70,13 +73,15 @@ public class CustomHostApduService extends HostApduService {
 			Log.d(TAG, "activity has not been set yet or user is not in the given activity");
 		}
 	}
-
+	
 	@Override
 	public byte[] processCommandApdu(byte[] bytes, Bundle extras) {
 		if (hostActivity == null) {
 			Log.e(TAG, "The user is not in the correct activity but tries to establish a NFC connection.");
 			return new NfcMessage(NfcMessage.ERROR, (byte) (0x00), null).getData();
 		}
+		
+		working = true;
 		
 		if (selectAidApdu(bytes)) {
 			/*
@@ -150,7 +155,7 @@ public class CustomHostApduService extends HostApduService {
 		
 		if (status == NfcMessage.ERROR) {
 			Log.d(TAG, "nfc error reported - returning null");
-			eventHandler.handleMessage(NfcEvent.ERROR_REPORTED, NfcTransceiver.UNEXPECTED_ERROR);
+			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcTransceiver.UNEXPECTED_ERROR);
 			return null;
 		}
 		
@@ -167,7 +172,7 @@ public class CustomHostApduService extends HostApduService {
 			
 			if (incoming.requestsRetransmission()) {
 				//this is a deadlock, since both parties are requesting a retransmit
-				eventHandler.handleMessage(NfcEvent.COMMUNICATION_ERROR, NfcTransceiver.UNEXPECTED_ERROR);
+				eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcTransceiver.UNEXPECTED_ERROR);
 				return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
 			}
 			
@@ -186,7 +191,7 @@ public class CustomHostApduService extends HostApduService {
 				return lastMessage;
 			} else {
 				//Requesting retransmit failed
-				eventHandler.handleMessage(NfcEvent.COMMUNICATION_ERROR, NfcTransceiver.UNEXPECTED_ERROR);
+				eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcTransceiver.UNEXPECTED_ERROR);
 				return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
 			}
 		} else {
@@ -245,7 +250,7 @@ public class CustomHostApduService extends HostApduService {
 				return toReturn;
 			} else {
 				Log.e(TAG, "IsoDep wants next fragment, but there is nothing to reply!");
-				eventHandler.handleMessage(NfcEvent.COMMUNICATION_ERROR, NfcTransceiver.UNEXPECTED_ERROR);
+				eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcTransceiver.UNEXPECTED_ERROR);
 				return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
 			}
 		default:
@@ -262,7 +267,7 @@ public class CustomHostApduService extends HostApduService {
 			return new NfcMessage(NfcMessage.RETRANSMIT, (byte) lastSqNrSent, null);
 		} else {
 			//Requesting retransmit failed
-			eventHandler.handleMessage(NfcEvent.COMMUNICATION_ERROR, NfcTransceiver.UNEXPECTED_ERROR);
+			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcTransceiver.UNEXPECTED_ERROR);
 			return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
 		}
 	}
@@ -275,7 +280,41 @@ public class CustomHostApduService extends HostApduService {
 	public void onDeactivated(int reason) {
 		Log.d(TAG, "deactivated due to " + (reason == HostApduService.DEACTIVATION_LINK_LOSS ? "link loss" : "deselected") + "("+reason+")");
 		timeDeactivated = System.currentTimeMillis();
-		eventHandler.handleMessage(NfcEvent.CONNECTION_LOST, null);
+		
+		if (sessionResumeThread != null && !sessionResumeThread.isInterrupted())
+			sessionResumeThread.interrupt();
+
+		working = false;
+		
+		sessionResumeThread = new Thread(new SessionResumeTask());
+		sessionResumeThread.start();
+	}
+	
+	private class SessionResumeTask implements Runnable {
+		
+		public void run() {
+			long startTime = System.currentTimeMillis();
+			boolean cont = true;
+			long now;
+			
+			while (cont && !Thread.currentThread().isInterrupted()) {
+				now = System.currentTimeMillis();
+				if (!working) {
+					if (now - startTime < Config.SESSION_RESUME_THRESHOLD) {
+						try {
+							Thread.sleep(50);
+						} catch (InterruptedException e) {
+						}
+					} else {
+						cont = false;
+						eventHandler.handleMessage(NfcEvent.CONNECTION_LOST, null);
+					}
+				} else {
+					cont = false;
+				}
+			}
+		}
+		
 	}
 
 }

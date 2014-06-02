@@ -101,7 +101,7 @@ public class ExternalNfcTransceiver extends NfcTransceiver {
 	protected byte[] writeRaw(byte[] bytes) throws IllegalArgumentException, TransceiveException, IOException {
 		if (!isEnabled()) {
 			Log.d(TAG, "could not write message, NfcTransceiver is not enabled");
-			throw new TransceiveException(NfcEvent.COMMUNICATION_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
+			throw new TransceiveException(NfcEvent.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
 		}
 		
 		if (reader.isOpened()) {

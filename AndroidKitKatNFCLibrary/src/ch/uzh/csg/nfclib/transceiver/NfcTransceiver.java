@@ -165,7 +165,7 @@ public abstract class NfcTransceiver {
 		
 		if (response.getStatus() == NfcMessage.ERROR) {
 			Log.d(TAG, "nfc error reported");
-			throw new TransceiveException(NfcEvent.ERROR_REPORTED, UNEXPECTED_ERROR);
+			throw new TransceiveException(NfcEvent.FATAL_ERROR, UNEXPECTED_ERROR);
 		}
 		
 		boolean sendSuccess = false;
@@ -175,7 +175,7 @@ public abstract class NfcTransceiver {
 				
 				if (response.invalidSequenceNumber(lastSqNrReceived+1) && response.requestsRetransmission()) {
 					//this is a deadlock, since both parties are requesting a retransmit
-					throw new TransceiveException(NfcEvent.COMMUNICATION_ERROR, UNEXPECTED_ERROR);
+					throw new TransceiveException(NfcEvent.FATAL_ERROR, UNEXPECTED_ERROR);
 				}
 				
 				lastSqNrSent++;
@@ -199,7 +199,7 @@ public abstract class NfcTransceiver {
 		
 		if (!sendSuccess) {
 			//Requesting retransmit failed
-			throw new TransceiveException(NfcEvent.COMMUNICATION_ERROR, UNEXPECTED_ERROR);
+			throw new TransceiveException(NfcEvent.FATAL_ERROR, UNEXPECTED_ERROR);
 		}
 		
 		return response;
@@ -223,7 +223,7 @@ public abstract class NfcTransceiver {
 		
 		if (!retransmissionSuccess) {
 			//Retransmitting message failed
-			throw new TransceiveException(NfcEvent.COMMUNICATION_ERROR, UNEXPECTED_ERROR);
+			throw new TransceiveException(NfcEvent.FATAL_ERROR, UNEXPECTED_ERROR);
 		}
 		
 		return response;
@@ -328,10 +328,7 @@ public abstract class NfcTransceiver {
 			if (responseReady) {
 				getNfcEventHandler().handleMessage(NfcEvent.MESSAGE_RECEIVED, messageReassembler.getData());
 			} else if (returnErrorMessage) {
-				
-				//TODO: refactor this, change to connection lost --> adopt tests! handle connection lost in payment library --> might be followed by resume
-				
-				getNfcEventHandler().handleMessage(NfcEvent.COMMUNICATION_ERROR, UNEXPECTED_ERROR);
+				getNfcEventHandler().handleMessage(NfcEvent.FATAL_ERROR, UNEXPECTED_ERROR);
 			}
 		}
 		
