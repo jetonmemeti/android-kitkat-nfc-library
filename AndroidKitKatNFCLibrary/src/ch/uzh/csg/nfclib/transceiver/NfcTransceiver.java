@@ -331,7 +331,7 @@ public abstract class NfcTransceiver {
 			if (responseReady) {
 				getNfcEventHandler().handleMessage(NfcEvent.MESSAGE_RECEIVED, messageReassembler.getData());
 			} else if (returnErrorMessage) {
-				getNfcEventHandler().handleMessage(NfcEvent.FATAL_ERROR, UNEXPECTED_ERROR);
+				getNfcEventHandler().handleMessage(NfcEvent.CONNECTION_LOST, null);
 			}
 		}
 		
