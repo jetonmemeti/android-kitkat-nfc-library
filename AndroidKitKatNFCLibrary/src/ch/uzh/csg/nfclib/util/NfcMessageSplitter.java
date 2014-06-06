@@ -1,8 +1,7 @@
 package ch.uzh.csg.nfclib.util;
 
 import java.util.ArrayList;
-
-import org.apache.commons.lang3.ArrayUtils;
+import java.util.Arrays;
 
 import ch.uzh.csg.nfclib.messages.NfcMessage;
 
@@ -50,7 +49,8 @@ public class NfcMessageSplitter {
 		
 		for (int i=0; i<totalNofMessagesToSend; i++) {
 			int start = i*payloadLength;
-			byte[] temp = ArrayUtils.subarray(payload, start, start+payloadLength);
+			int end = (start+payloadLength > payload.length) ? payload.length : (start+payloadLength);
+			byte[] temp = Arrays.copyOfRange(payload, start, end);
 			byte status = (i < (totalNofMessagesToSend-1)) ? NfcMessage.HAS_MORE_FRAGMENTS : NfcMessage.DEFAULT;
 			// The sequence number which is added here is not important, since
 			// it will be overwritten anyway!

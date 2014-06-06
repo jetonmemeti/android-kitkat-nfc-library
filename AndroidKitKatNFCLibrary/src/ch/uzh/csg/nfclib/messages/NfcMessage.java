@@ -149,7 +149,7 @@ public class NfcMessage extends ProtocolMessage {
 			return sb.toString();
 		} else {
 			sb.append("head: ");
-			sb.append(", status: ").append(Integer.toHexString(getData()[0] & 0xFF));
+			sb.append("status: ").append(Integer.toHexString(getData()[0] & 0xFF));
 			sb.append(", sequence: ").append(Integer.valueOf(getData()[1] & 0xFF));
 			sb.append("/ payload length:").append(getData().length-HEADER_LENGTH);
 			return sb.toString();

@@ -1,6 +1,6 @@
 package ch.uzh.csg.nfclib.messages;
 
-import org.apache.commons.lang3.ArrayUtils;
+import java.util.Arrays;
 
 /**
  * This is the abstract base type of the protocol messages send via NFC to
@@ -71,7 +71,7 @@ public abstract class ProtocolMessage {
 		if (data == null || data.length <= headerLength)
 			return null;
 		else
-			return ArrayUtils.subarray(data, headerLength, data.length);
+			return Arrays.copyOfRange(data, headerLength, data.length);
 	}
 	
 	/**
