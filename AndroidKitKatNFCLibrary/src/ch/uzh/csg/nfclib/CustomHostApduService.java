@@ -46,6 +46,8 @@ public class CustomHostApduService extends HostApduService {
 	private static Thread sessionResumeThread = null;
 	private static volatile boolean working = false;
 	
+	private static Object lock = new Object();
+	
 	public static void init(Activity activity, NfcEventHandler eventHandler, IMessageHandler messageHandler) {
 		hostActivity = activity;
 		CustomHostApduService.eventHandler = eventHandler;
@@ -76,42 +78,44 @@ public class CustomHostApduService extends HostApduService {
 	
 	@Override
 	public byte[] processCommandApdu(byte[] bytes, Bundle extras) {
-		if (hostActivity == null) {
-			Log.e(TAG, "The user is not in the correct activity but tries to establish a NFC connection.");
-			return new NfcMessage(NfcMessage.ERROR, (byte) (0x00), null).getData();
-		}
-		
-		working = true;
-		
-		if (selectAidApdu(bytes)) {
-			/*
-			 * The size of the returned message is specified in NfcTransceiver
-			 * and is set to 2 actually.
-			 */
-			Log.d(TAG, "AID selected");
-			
-			long now = System.currentTimeMillis();
-			long newUserId = CommandApdu.getUserId(bytes);
-			
-			if (newUserId == userIdReceived && (now - timeDeactivated < Config.SESSION_RESUME_THRESHOLD)) {
-				return new NfcMessage(NfcMessage.AID_SELECTED, (byte) 0x00, null).getData();
-			} else {
-				userIdReceived = newUserId;
-				eventHandler.handleMessage(NfcEvent.INITIALIZED, Long.valueOf(userIdReceived));
-				resetStates();
-				return new NfcMessage((byte) (NfcMessage.AID_SELECTED | NfcMessage.START_PROTOCOL), (byte) 0x00, null).getData();
+		synchronized (lock) {
+			if (hostActivity == null) {
+				Log.e(TAG, "The user is not in the correct activity but tries to establish a NFC connection.");
+				return new NfcMessage(NfcMessage.ERROR, (byte) (0x00), null).getData();
 			}
-		} else if (readBinary(bytes)) {
-			//TODO: check if this ok
-			return new byte[] { 0x00 };
-		}
-		
-		NfcMessage response = getResponse(bytes);
-		if (response == null) {
-			return null;
-		} else {
-			lastMessage = response;
-			return response.getData();
+			
+			working = true;
+			
+			if (selectAidApdu(bytes)) {
+				/*
+				 * The size of the returned message is specified in NfcTransceiver
+				 * and is set to 2 actually.
+				 */
+				Log.d(TAG, "AID selected");
+				
+				long now = System.currentTimeMillis();
+				long newUserId = CommandApdu.getUserId(bytes);
+				
+				if (newUserId == userIdReceived && (now - timeDeactivated < Config.SESSION_RESUME_THRESHOLD)) {
+					return new NfcMessage(NfcMessage.AID_SELECTED, (byte) 0x00, null).getData();
+				} else {
+					userIdReceived = newUserId;
+					eventHandler.handleMessage(NfcEvent.INITIALIZED, Long.valueOf(userIdReceived));
+					resetStates();
+					return new NfcMessage((byte) (NfcMessage.AID_SELECTED | NfcMessage.START_PROTOCOL), (byte) 0x00, null).getData();
+				}
+			} else if (readBinary(bytes)) {
+				//TODO: check if this ok
+				return new byte[] { 0x00 };
+			}
+			
+			NfcMessage response = getResponse(bytes);
+			if (response == null) {
+				return null;
+			} else {
+				lastMessage = response;
+				return response.getData();
+			}
 		}
 	}
 
