@@ -34,3 +34,7 @@ Installation Guidelines:
   <li>In Eclipse go to <i>File --> Import --> Maven --> Existing Maven Project</i>. In the appearing dialog under <i>Root Directory</i> enter the path to the checked out project in your git repository.</li>
   <li>Select the project <i>AndroidKitKatNFCLibrary</i> and click on <i>Finish</i>.</li>
   <li>Run mvn install on this project to install it to your local maven repository. Now you can use this library in your project by adding its <i>groupId</i>, <i>artifactId</i>, and <i>version</i> (see pom.xml) to the POM of your project.</li>
+</ul>
+How to Use:
+-----------
+You can have a look at or check out the <a href="https://github.com/jetonmemeti/android-nfc-payment-library">AndroidNFCPaymentLibrary</a> to see how you can use this library.
