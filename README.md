@@ -31,9 +31,9 @@ Installation Guidelines:
     </ul>
   </li>
   <li>Clone this git repository.</li>
-  <li>In Eclipse go to <i>File --> Import --> Maven --> Existing Maven Project</i>. In the appearing dialog under <i>Root Directory</i> enter the path to the checked out project in your git repository.</li>
-  <li>Select the project <i>AndroidKitKatNFCLibrary</i> and click on <i>Finish</i>.</li>
-  <li>Run mvn install on this project to install it to your local maven repository. Now you can use this library in your project by adding its <i>groupId</i>, <i>artifactId</i>, and <i>version</i> (see pom.xml) to the POM of your project.</li>
+  <li>In Eclipse go to <code>File --> Import --> Maven --> Existing Maven Project</code>. In the appearing dialog under <code>Root Directory</code> enter the path to the checked out project in your git repository.</li>
+  <li>Select the project <i>AndroidKitKatNFCLibrary</i> and click on <code>Finish</code>.</li>
+  <li>Run <code>mvn install</code> on the root folder of this project to install it to your local maven repository. Now you can use this library in your project by adding its <i>groupId</i>, <i>artifactId</i>, and <i>version</i> (see pom.xml) to the POM of your project.</li>
 </ul>
 How to Use:
 -----------
