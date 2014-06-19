@@ -22,7 +22,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import android.app.Activity;
 import android.util.Log;
-import ch.uzh.csg.nfclib.messages.NfcMessage;
 import ch.uzh.csg.nfclib.testutil.TestUtils;
 import ch.uzh.csg.nfclib.transceiver.InternalNfcTransceiverTest;
 import ch.uzh.csg.nfclib.transceiver.NfcTransceiver;
@@ -95,48 +94,33 @@ public class CustomHostApduServiceTest {
 	
 	
 	@Test
-	public void testProcessCommandApdu_NullActivity() throws Exception {
-		
+	public void testProcessCommandApdu_NullActivity() throws Exception {	
 		/*
 		 * This will fail because the init method is not called (there is no host activity).
 		 */
 		reset();
 		CustomHostApduService hceService = new CustomHostApduService(null,null,null);
 		byte[] processCommandApdu = hceService.processCommandApdu(null, null);
-		NfcMessage response = new NfcMessage(processCommandApdu);
+		NfcMessage response = new NfcMessage().bytes(processCommandApdu);
+		NfcMessage expectedResponse = new NfcMessage().type(NfcMessage.ERROR);
+		compare(response, expectedResponse);
 		
-		NfcMessage expectedResponse = new NfcMessage(NfcMessage.ERROR, (byte) (0x00), null);
-		assertEquals(expectedResponse.getStatus(), response.getStatus());
-		assertEquals(expectedResponse.getPayload(), response.getPayload());
-		assertEquals(expectedResponse.getSequenceNumber(), response.getSequenceNumber());
-		
-		Thread.sleep(THREAD_SLEEP_TIME);
-		assertFalse(nfcInitialized);
-		assertEquals(0, userIdReceived);
-		assertFalse(nfcCommunicationError);
-		assertNull(nfcCommunicationErrorMessage);
-		assertFalse(nfcMessageReceived);
-		assertFalse(nfcMessageReturned);
+	}
+	
+	private static void compare(NfcMessage msg1, NfcMessage msg2) {
+		assertEquals(msg1.type(), msg2.type());
+		assertEquals(msg1.payload(), msg2.payload());
+		assertEquals(msg1.bytes(), msg2.bytes());
+		assertEquals(msg1.sequenceNumber(), msg2.sequenceNumber());
 	}
 	
 	@Test
 	public void testProcessCommandApdu_SelectAid() throws InterruptedException {
 		reset();
 		CustomHostApduService hceService = getHCEService(null);
-		
-		byte[] processCommandApdu = hceService.processCommandApdu(CommandApdu.getCommandApdu(InternalNfcTransceiverTest.userId), null);
-		NfcMessage response = new NfcMessage(processCommandApdu);
-		
-		byte status = NfcMessage.AID_SELECTED | NfcMessage.START_PROTOCOL;
-		assertEquals(status, response.getStatus());
-		
-		Thread.sleep(THREAD_SLEEP_TIME);
-		assertTrue(nfcInitialized);
-		assertEquals(InternalNfcTransceiverTest.userId, userIdReceived);
-		assertFalse(nfcCommunicationError);
-		assertNull(nfcCommunicationErrorMessage);
-		assertFalse(nfcMessageReceived);
-		assertFalse(nfcMessageReturned);
+		byte[] processCommandApdu = hceService.processCommandApdu(NfcMessage.CLA_INS_P1_P2_AID_MBPS, null);
+		NfcMessage response = new NfcMessage().bytes(processCommandApdu);
+		assertTrue(response.isSelectAidApdu());
 	}
 	
 	@Test
@@ -1138,7 +1122,7 @@ public class CustomHostApduServiceTest {
 		 */
 		CustomHostApduService hceService = getHCEService(messageHandler);
 		
-		byte[] processCommandApdu = hceService.processCommandApdu(CommandApdu.getCommandApdu(InternalNfcTransceiverTest.userId), null);
+		byte[] processCommandApdu = hceService.processCommandApdu(Constants.CLA_INS_P1_P2_AID_MBPS, null);
 		NfcMessage response = new NfcMessage(processCommandApdu);
 		
 		assertEquals((byte) (NfcMessage.AID_SELECTED | NfcMessage.START_PROTOCOL), response.getStatus());
@@ -1184,7 +1168,7 @@ public class CustomHostApduServiceTest {
 		hceService = new CustomHostApduService(null,null,null);
 		
 		//send command apdu
-		processCommandApdu = hceService.processCommandApdu(CommandApdu.getCommandApdu(InternalNfcTransceiverTest.userId), null);
+		processCommandApdu = hceService.processCommandApdu(Constants.CLA_INS_P1_P2_AID_MBPS, null);
 		response = new NfcMessage(processCommandApdu);
 		assertEquals(NfcMessage.AID_SELECTED, response.getStatus());
 		
@@ -1261,7 +1245,7 @@ public class CustomHostApduServiceTest {
 		 */
 		CustomHostApduService hceService = getHCEService(messageHandler);
 		
-		byte[] processCommandApdu = hceService.processCommandApdu(CommandApdu.getCommandApdu(InternalNfcTransceiverTest.userId), null);
+		byte[] processCommandApdu = hceService.processCommandApdu(Constants.CLA_INS_P1_P2_AID_MBPS, null);
 		NfcMessage response = new NfcMessage(processCommandApdu);
 		
 		assertEquals((byte) (NfcMessage.AID_SELECTED | NfcMessage.START_PROTOCOL), response.getStatus());
@@ -1311,7 +1295,7 @@ public class CustomHostApduServiceTest {
 		Thread.sleep(Config.SESSION_RESUME_THRESHOLD);
 		
 		//send command apdu
-		processCommandApdu = hceService.processCommandApdu(CommandApdu.getCommandApdu(InternalNfcTransceiverTest.userId), null);
+		processCommandApdu = hceService.processCommandApdu(Constants.CLA_INS_P1_P2_AID_MBPS, null);
 		response = new NfcMessage(processCommandApdu);
 		assertEquals((byte) (NfcMessage.AID_SELECTED | NfcMessage.START_PROTOCOL), response.getStatus());
 		
@@ -1381,7 +1365,7 @@ public class CustomHostApduServiceTest {
 		 */
 		CustomHostApduService hceService = getHCEService(messageHandler);
 		
-		byte[] processCommandApdu = hceService.processCommandApdu(CommandApdu.getCommandApdu(InternalNfcTransceiverTest.userId), null);
+		byte[] processCommandApdu = hceService.processCommandApdu(Constants.CLA_INS_P1_P2_AID_MBPS, null);
 		NfcMessage response = new NfcMessage(processCommandApdu);
 		
 		assertEquals((byte) (NfcMessage.AID_SELECTED | NfcMessage.START_PROTOCOL), response.getStatus());
@@ -1430,7 +1414,7 @@ public class CustomHostApduServiceTest {
 		long newUserId = System.currentTimeMillis();
 		
 		//send command apdu
-		processCommandApdu = hceService.processCommandApdu(CommandApdu.getCommandApdu(newUserId), null);
+		processCommandApdu = hceService.processCommandApdu(Constants.CLA_INS_P1_P2_AID_MBPS, null);
 		response = new NfcMessage(processCommandApdu);
 		assertEquals((byte) (NfcMessage.AID_SELECTED | NfcMessage.START_PROTOCOL), response.getStatus());
 		

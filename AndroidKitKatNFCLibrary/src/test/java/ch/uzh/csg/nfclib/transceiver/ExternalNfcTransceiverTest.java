@@ -34,7 +34,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import android.util.Log;
 import ch.uzh.csg.nfclib.NfcEvent;
 import ch.uzh.csg.nfclib.NfcEventInterface;
-import ch.uzh.csg.nfclib.messages.NfcMessage;
+import ch.uzh.csg.nfclib.NfcMessage;
 import ch.uzh.csg.nfclib.testutil.TestUtils;
 import ch.uzh.csg.nfclib.util.Config;
 import ch.uzh.csg.nfclib.util.NfcMessageSplitter;

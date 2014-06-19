@@ -7,12 +7,11 @@ import android.app.Activity;
 import android.nfc.cardemulation.HostApduService;
 import android.os.Bundle;
 import android.util.Log;
-import ch.uzh.csg.nfclib.messages.NfcMessage;
 import ch.uzh.csg.nfclib.transceiver.NfcTransceiver;
 import ch.uzh.csg.nfclib.util.Config;
-import ch.uzh.csg.nfclib.util.Constants;
 import ch.uzh.csg.nfclib.util.NfcMessageReassembler;
 import ch.uzh.csg.nfclib.util.NfcMessageSplitter;
+import ch.uzh.csg.nfclib.util.Utils;
 
 //TODO: javadoc
 public class CustomHostApduService {
@@ -46,6 +45,8 @@ public class CustomHostApduService {
 	private static Thread sessionResumeThread = null;
 	private static volatile boolean working = false;
 	
+	private long now;
+	
 	private static Object lock = new Object();
 	
 	public CustomHostApduService(Activity activity, NfcEventInterface eventHandler, IMessageHandler messageHandler) {
@@ -69,66 +70,42 @@ public class CustomHostApduService {
 	
 	public byte[] processCommandApdu(byte[] bytes, Bundle extras) {
 		Log.d(TAG, "processCommandApdu");
+		NfcMessage inputMessage = new NfcMessage().bytes(bytes);
 		synchronized (lock) {
 			if (hostActivity == null) {
 				Log.e(TAG, "The user is not in the correct activity but tries to establish a NFC connection.");
-				return new NfcMessage(NfcMessage.ERROR, (byte) (0x00), null).getData();
+				return new NfcMessage().sequenceNumber(inputMessage).error().bytes();
 			}
 			
 			working = true;
 			
-			if (selectAidApdu(bytes)) {
+			if (inputMessage.isSelectAidApdu()) {
 				/*
 				 * The size of the returned message is specified in NfcTransceiver
 				 * and is set to 2 actually.
 				 */
 				Log.d(TAG, "AID selected");
-				
-				long now = System.currentTimeMillis();
-				long newUserId = CommandApdu.getUserId(bytes);
-				
-				if (newUserId == userIdReceived && (now - timeDeactivated < Config.SESSION_RESUME_THRESHOLD)) {
-					return new NfcMessage(NfcMessage.AID_SELECTED, (byte) 0x00, null).getData();
-				} else {
-					userIdReceived = newUserId;
-					eventHandler.handleMessage(NfcEvent.INITIALIZED, Long.valueOf(userIdReceived));
-					resetStates();
-					return new NfcMessage((byte) (NfcMessage.AID_SELECTED | NfcMessage.START_PROTOCOL), (byte) 0x00, null).getData();
-				}
-			} else if (readBinary(bytes)) {
-				//TODO: check if this ok
-				return new byte[] { 0x00 };
+				now = System.currentTimeMillis();
+				return new NfcMessage().sequenceNumber(inputMessage).type(NfcMessage.AID_SELECTED).bytes();
+			} else if (inputMessage.isReadBinary()) {
+				return new NfcMessage().readBinary().bytes();
 			}
 			
-			NfcMessage response = getResponse(bytes);
+			NfcMessage response = handleRequest(inputMessage);
 			if (response == null) {
 				return null;
 			} else {
 				lastMessage = response;
-				return response.getData();
+				byte[] retVal = response.bytes();
+				Log.d(TAG, "about to write "+Arrays.toString(retVal));
+				return retVal;
 			}
 		}
 	}
 
-	private boolean readBinary(byte[] bytes) {
-		/*
-		 * Based on the reported issue in
-		 * https://code.google.com/p/android/issues/detail?id=58773, there is a
-		 * failure in the Android NFC protocol. The IsoDep might transceive a
-		 * READ BINARY, if the communication with the tag (or HCE) has been idle
-		 * for a given time (125ms as mentioned on the issue report). This idle
-		 * time can be changed with the EXTRA_READER_PRESENCE_CHECK_DELAY
-		 * option.
-		 */
-		return Arrays.equals(bytes, Constants.READ_BINARY);
-	}
+	
 
-	private boolean selectAidApdu(byte[] bytes) {
-		if (bytes == null || bytes.length < 2)
-			return false;
-		else
-			return bytes[0] == Constants.CLA_INS_P1_P2[0] && bytes[1] == Constants.CLA_INS_P1_P2[1];
-	}
+	
 
 	private void resetStates() {
 		messageReassembler.clear();
@@ -142,76 +119,37 @@ public class CustomHostApduService {
 		nofRetransmissions = 0;
 	}
 
-	private NfcMessage getResponse(byte[] bytes) {
-		NfcMessage incoming = new NfcMessage(bytes);
+	private NfcMessage handleRequest(NfcMessage incoming) {
 		Log.d(TAG, "received msg: "+incoming);
 		
-		byte status = (byte) (incoming.getStatus());
+		//byte status = (byte) (incoming.getStatus());
 		
-		if (status == NfcMessage.ERROR) {
+		if (incoming.isError()) {
+			// less than zero means the error flag is set:  NfcMessage.ERROR
 			Log.d(TAG, "nfc error reported - returning null");
 			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcTransceiver.UNEXPECTED_ERROR);
 			return null;
 		}
 		
-		lastSqNrSent++;
-		if (lastSqNrSent > 255) {
-			// reset the counter, because next message will have sq nr 1!
-			lastSqNrSent = 1;
-		}
-		
-		if (corruptMessage(bytes)) {
-			return returnRetransmissionOrError();
-		} else if (incoming.invalidSequenceNumber(lastSqNrReceived+1)) {
-			if ((incoming.getSequenceNumber() & 0xFF) == lastSqNrReceived) {
-				// same sequence number, so this is a retransmit because of an interrupted connection
-				lastSqNrSent--;
-				return lastMessage;
-			} else {
-				Log.d(TAG, "requesting retransmission because answer was not as expected");
-				
-				if (incoming.requestsRetransmission()) {
-					//this is a deadlock, since both parties are requesting a retransmit
-					eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcTransceiver.UNEXPECTED_ERROR);
-					return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
-				}
-				
-				return returnRetransmissionOrError();
-			}
-		} else if (incoming.requestsRetransmission()) {
-			lastSqNrReceived++;
-			if (lastSqNrReceived == 255) {
-				// reset the counter, because next message will have sq nr 1!
-				lastSqNrReceived = 0;
-			}
-			
-			if (nofRetransmissions < Config.MAX_RETRANSMITS) {
-				nofRetransmissions++;
-				// decrement, since it should have the same sq nr, but was incremented above
-				lastSqNrSent--;
-				return lastMessage;
-			} else {
-				//Requesting retransmit failed
-				eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcTransceiver.UNEXPECTED_ERROR);
-				return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
-			}
-		} else {
-			nofRetransmissions = 0;
-		}
-		
-		lastSqNrReceived++;
-		if (lastSqNrReceived == 255) {
-			// reset the counter, because next message will have sq nr 1!
-			lastSqNrReceived = 0;
-		}
-		
 		NfcMessage toReturn;
 		
-		switch (status) {
+		switch (incoming.type()) {
+		case NfcMessage.USER_ID:
+			//now we have the user id, get it
+			long newUserId = Utils.byteArrayToLong(incoming.payload(), 0);
+			Log.d(TAG, "received user id "+ newUserId);
+			if (newUserId == userIdReceived && (now - timeDeactivated < Config.SESSION_RESUME_THRESHOLD)) {
+				return new NfcMessage().type(NfcMessage.USER_ID);						
+			} else {
+				userIdReceived = newUserId;
+				eventHandler.handleMessage(NfcEvent.INITIALIZED, Long.valueOf(userIdReceived));
+				resetStates();
+				return new NfcMessage().type(NfcMessage.USER_ID).sequenceNumber(incoming).startProtocol();						
+			}
 		case NfcMessage.HAS_MORE_FRAGMENTS:
 			Log.d(TAG, "has more fragments");
 			messageReassembler.handleReassembly(incoming);
-			return new NfcMessage(NfcMessage.GET_NEXT_FRAGMENT, (byte) lastSqNrSent, null);
+			return new NfcMessage().type(NfcMessage.GET_NEXT_FRAGMENT).sequenceNumber(incoming);
 		case NfcMessage.DEFAULT:
 			Log.d(TAG, "handle default");
 			
@@ -219,28 +157,25 @@ public class CustomHostApduService {
 			
 			messageReassembler.handleReassembly(incoming);
 			//TODO: what if implementation takes to long?? polling?
-			byte[] response = messageHandler.handleMessage(messageReassembler.getData());
+			byte[] response = messageHandler.handleMessage(messageReassembler.data());
 			messageReassembler.clear();
 		
 			fragments = messageSplitter.getFragments(response);
 			Log.d(TAG, "returning: " + response.length + " bytes, " + fragments.size() + " fragments");
 			if (fragments.size() == 1) {
 				toReturn = fragments.get(0);
-				toReturn.setSequenceNumber((byte) lastSqNrSent);
 				lastSqNrReceived = lastSqNrSent = 0;
 				index = 0;
 				fragments = null;
 				eventHandler.handleMessage(NfcEvent.MESSAGE_RETURNED, null);
 			} else {
 				toReturn = fragments.get(index++);
-				toReturn.setSequenceNumber((byte) lastSqNrSent);
 			}
 			return toReturn;
 		case NfcMessage.GET_NEXT_FRAGMENT:
 			if (fragments != null && !fragments.isEmpty() && index < fragments.size()) {
 				toReturn = fragments.get(index++);
-				toReturn.setSequenceNumber((byte) lastSqNrSent);
-				if (toReturn.getStatus() != NfcMessage.HAS_MORE_FRAGMENTS) {
+				if (toReturn.hasMoreFragments()) {
 					lastSqNrReceived = lastSqNrSent = 0;
 					index = 0;
 					fragments = null;
@@ -252,29 +187,12 @@ public class CustomHostApduService {
 			} else {
 				Log.e(TAG, "IsoDep wants next fragment, but there is nothing to reply!");
 				eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcTransceiver.UNEXPECTED_ERROR);
-				return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
+				return new NfcMessage().error().sequenceNumber(incoming);
 			}
 		default:
-			//TODO: does this ever occur?
-			//TODO: handle, since this is not correct!! should not receive something else
-			return new NfcMessage(NfcMessage.DEFAULT, (byte) 0x00, null);
+			return new NfcMessage().type(NfcMessage.DEFAULT);
 			
 		}
-	}
-
-	private NfcMessage returnRetransmissionOrError() {
-		if (nofRetransmissions < Config.MAX_RETRANSMITS) {
-			nofRetransmissions++;
-			return new NfcMessage(NfcMessage.RETRANSMIT, (byte) lastSqNrSent, null);
-		} else {
-			//Requesting retransmit failed
-			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcTransceiver.UNEXPECTED_ERROR);
-			return new NfcMessage(NfcMessage.ERROR, (byte) lastSqNrSent, null);
-		}
-	}
-	
-	private boolean corruptMessage(byte[] bytes) {
-		return bytes == null || bytes.length < NfcMessage.HEADER_LENGTH;
 	}
 	
 	public void onDeactivated(int reason) {
