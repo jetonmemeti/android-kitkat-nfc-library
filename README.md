@@ -39,7 +39,7 @@ How to Use:
 -----------
 You can have a look at or check out the <a href="https://github.com/jetonmemeti/android-nfc-payment-library">AndroidNFCPaymentLibrary</a> to see how you can use this library.
 
-If you want to import this library into your own Android project - without using the <a href="https://github.com/jetonmemeti/android-nfc-payment-library">AndroidNFCPaymentLibrary</a> - there are three important things that you need to add to your project in order for the NFC to work properly. This is also done in the <a href="https://github.com/jetonmemeti/SamplePaymentProject">SamplePaymentProject</a>.
+If you want to import this library into your own Android project - without using the <a href="https://github.com/jetonmemeti/android-nfc-payment-library">AndroidNFCPaymentLibrary</a> - there are three important things that you need to add to your project in order for the NFC to work properly. (See for example the <a href="https://github.com/jetonmemeti/SamplePaymentProject">SamplePaymentProject</a>.)
 <ul>
   <li>Copy the file <a href="https://github.com/jetonmemeti/android-nfc-payment-library/blob/develop-tb/res/apduservice.xml">apduservice.xml</a> to <code>&lt;project root folder&gt;\res\xml\</code>.</li>
   <li>In <code>&lt;project root folder&gt;\res\values\strings.xml</code> add the following:<br>
@@ -60,3 +60,5 @@ If you want to import this library into your own Android project - without using
 &lt;/service&gt;</code></pre>
   </li>
 </ul>
+
+Once this is done, you can use this library in your project by adding its <i>groupId</i>, <i>artifactId</i>, and <i>version</i> (see pom.xml) to the POM of your project.
