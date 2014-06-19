@@ -13,7 +13,7 @@ import android.hardware.usb.UsbManager;
 import android.util.Log;
 import ch.uzh.csg.nfclib.CustomHostApduService;
 import ch.uzh.csg.nfclib.NfcEvent;
-import ch.uzh.csg.nfclib.NfcEventHandler;
+import ch.uzh.csg.nfclib.NfcEventInterface;
 import ch.uzh.csg.nfclib.exceptions.NfcNotEnabledException;
 import ch.uzh.csg.nfclib.exceptions.NoNfcException;
 import ch.uzh.csg.nfclib.exceptions.TransceiveException;
@@ -25,7 +25,7 @@ import com.acs.smartcard.ReaderException;
 //TODO: javadoc
 public class ExternalNfcTransceiver extends NfcTransceiver {
 	
-	private static final String TAG = "ExternalNfcTransceiver";
+	private static final String TAG = "##NFC## ExternalNfcTransceiver";
 	
 	/*
 	 * 64 is the maximum due to a sequence bug in the ACR122u
@@ -42,8 +42,10 @@ public class ExternalNfcTransceiver extends NfcTransceiver {
 	private static final String ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION";
 	
 	private Reader reader;
+	
+	private BroadcastReceiver broadcastReceiver;
 
-	public ExternalNfcTransceiver(NfcEventHandler eventHandler, long userId) {
+	public ExternalNfcTransceiver(NfcEventInterface eventHandler, long userId) {
 		super(eventHandler, MAX_WRITE_LENGTH, userId);
 	}
 	
@@ -52,7 +54,7 @@ public class ExternalNfcTransceiver extends NfcTransceiver {
 	 * For productive use please use the constructor above, otherwise the NFC
 	 * will not work.
 	 */
-	protected ExternalNfcTransceiver(NfcEventHandler eventHandler, long userId, Reader reader) {
+	protected ExternalNfcTransceiver(NfcEventInterface eventHandler, long userId, Reader reader) {
 		this(eventHandler, userId);
 		this.reader = reader;
 	}
@@ -80,6 +82,7 @@ public class ExternalNfcTransceiver extends NfcTransceiver {
 		IntentFilter filter = new IntentFilter();
 		filter.addAction(ACTION_USB_PERMISSION);
 		filter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
+		broadcastReceiver = createBroadcastReceiver();
 		activity.registerReceiver(broadcastReceiver, filter);
 		
 		manager.requestPermission(externalDevice, permissionIntent);
@@ -189,33 +192,38 @@ public class ExternalNfcTransceiver extends NfcTransceiver {
 		return false;
 	}
 	
-	private BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+	private BroadcastReceiver createBroadcastReceiver() {
+		return new BroadcastReceiver() {
 
-		@Override
-		public void onReceive(Context context, Intent intent) {
-			String action = intent.getAction();
+			@Override
+            public void onReceive(Context context, Intent intent) {
+				String action = intent.getAction();
 
-	        if (ACTION_USB_PERMISSION.equals(action)) {
-	            UsbDevice device = (UsbDevice) intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
-	            if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-					if (device != null) {
-						try {
-							reader.open(device);
-						} catch (Exception e) {
-							getNfcEventHandler().handleMessage(NfcEvent.INIT_FAILED, null);
-							setEnabled(false);
+		        if (ACTION_USB_PERMISSION.equals(action)) {
+		            UsbDevice device = (UsbDevice) intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+		            if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
+						if (device != null) {
+							try {
+								reader.open(device);
+							} catch (Exception e) {
+								getNfcEventHandler().handleMessage(NfcEvent.INIT_FAILED, null);
+								setEnabled(false);
+							}
 						}
-					}
-	            }
-	        } else if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
-	            UsbDevice device = (UsbDevice) intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+		            }
+		        } else if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
+		            UsbDevice device = (UsbDevice) intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
 
-	            if (device != null && device.equals(reader.getDevice())) {
-	            	reader.close();
-	            }
-	        }
-		}
-		
-	};
+		            if (device != null && device.equals(reader.getDevice())) {
+		            	reader.close();
+		            }
+		        }
+	            
+            }
+
+			
+		};
+	}
+	
 
 }

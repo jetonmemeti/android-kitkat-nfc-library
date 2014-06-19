@@ -15,9 +15,9 @@ import ch.uzh.csg.nfclib.util.NfcMessageReassembler;
 import ch.uzh.csg.nfclib.util.NfcMessageSplitter;
 
 //TODO: javadoc
-public class CustomHostApduService extends HostApduService {
+public class CustomHostApduService {
 	
-	public static final String TAG = "CustomHostApduService";
+	public static final String TAG = "##NFC## CustomHostApduService";
 	
 	/*
 	 * NXP chip supports max 255 bytes (10 bytes is header of nfc protocol)
@@ -25,7 +25,7 @@ public class CustomHostApduService extends HostApduService {
 	public static final int MAX_WRITE_LENGTH = 245;
 	
 	private static Activity hostActivity;
-	private static NfcEventHandler eventHandler;
+	private static NfcEventInterface eventHandler;
 	private static IMessageHandler messageHandler;
 	
 	private static NfcMessageSplitter messageSplitter;
@@ -48,7 +48,7 @@ public class CustomHostApduService extends HostApduService {
 	
 	private static Object lock = new Object();
 	
-	public static void init(Activity activity, NfcEventHandler eventHandler, IMessageHandler messageHandler) {
+	public CustomHostApduService(Activity activity, NfcEventInterface eventHandler, IMessageHandler messageHandler) {
 		hostActivity = activity;
 		CustomHostApduService.eventHandler = eventHandler;
 		CustomHostApduService.messageHandler = messageHandler;
@@ -64,20 +64,11 @@ public class CustomHostApduService extends HostApduService {
 		lastSqNrSent = 0;
 		lastMessage = null;
 		nofRetransmissions = 0;
+		Log.d(TAG, "init hostapdu1");
 	}
 	
-	/*
-	 * The empty constructor is needed by android to instantiate the service.
-	 * That is the reason why most fields are static.
-	 */
-	public CustomHostApduService() {
-		if (hostActivity == null) {
-			Log.d(TAG, "activity has not been set yet or user is not in the given activity");
-		}
-	}
-	
-	@Override
 	public byte[] processCommandApdu(byte[] bytes, Bundle extras) {
+		Log.d(TAG, "processCommandApdu");
 		synchronized (lock) {
 			if (hostActivity == null) {
 				Log.e(TAG, "The user is not in the correct activity but tries to establish a NFC connection.");
@@ -286,7 +277,6 @@ public class CustomHostApduService extends HostApduService {
 		return bytes == null || bytes.length < NfcMessage.HEADER_LENGTH;
 	}
 	
-	@Override
 	public void onDeactivated(int reason) {
 		Log.d(TAG, "deactivated due to " + (reason == HostApduService.DEACTIVATION_LINK_LOSS ? "link loss" : "deselected") + "("+reason+")");
 		timeDeactivated = System.currentTimeMillis();

@@ -1,6 +1,7 @@
 package ch.uzh.csg.nfclib.transceiver;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 import android.app.Activity;
 import android.nfc.NfcAdapter;
@@ -9,14 +10,14 @@ import android.nfc.Tag;
 import android.os.Bundle;
 import android.util.Log;
 import ch.uzh.csg.nfclib.NfcEvent;
-import ch.uzh.csg.nfclib.NfcEventHandler;
+import ch.uzh.csg.nfclib.NfcEventInterface;
 import ch.uzh.csg.nfclib.exceptions.NfcNotEnabledException;
 import ch.uzh.csg.nfclib.exceptions.NoNfcException;
 import ch.uzh.csg.nfclib.exceptions.TransceiveException;
 
 //TODO: javadoc
 public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCallback {
-	private static final String TAG = "InternalNfcTransceiver";
+	private static final String TAG = "##NFC## InternalNfcTransceiver";
 	
 	/*
 	 * NXP chip supports max 255 bytes (10 bytes is header of nfc protocol)
@@ -26,7 +27,7 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 	private NfcAdapter nfcAdapter;
 	private CustomIsoDep isoDep;
 	
-	public InternalNfcTransceiver(NfcEventHandler eventHandler, long userId) {
+	public InternalNfcTransceiver(NfcEventInterface eventHandler, long userId) {
 		super(eventHandler, MAX_WRITE_LENGTH, userId);
 		isoDep = new CustomIsoDep();
 	}
@@ -36,7 +37,7 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 	 * For productive use please use the constructor above, otherwise the NFC
 	 * will not work.
 	 */
-	protected InternalNfcTransceiver(NfcEventHandler eventHandler, long userId, CustomIsoDep isoDep) {
+	protected InternalNfcTransceiver(NfcEventInterface eventHandler, long userId, CustomIsoDep isoDep) {
 		this(eventHandler, userId);
 		this.isoDep = isoDep;
 	}
@@ -78,9 +79,11 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 	}
 
 	public void onTagDiscovered(Tag tag) {
+		Log.d(TAG, "tag discovered "+tag);
 		isoDep.init(tag);
 		try {
 			isoDep.connect();
+			
 			initNfc();
 		} catch (IOException e) {
 			Log.e(TAG, "Could not connnect isodep: ", e);
@@ -103,7 +106,7 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 			} else if (bytes.length > MAX_WRITE_LENGTH) {
 				throw new IllegalArgumentException("The message length exceeds the maximum capacity of " + MAX_WRITE_LENGTH + " bytes.");
 			}
-			
+			Log.d(TAG, "about to write: "+Arrays.toString(bytes));
 			return isoDep.transceive(bytes);
 		} else {
 			Log.d(TAG, "could not write message, isodep is no longer connected");

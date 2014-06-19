@@ -7,7 +7,7 @@ import android.app.Activity;
 import android.util.Log;
 import ch.uzh.csg.nfclib.CommandApdu;
 import ch.uzh.csg.nfclib.NfcEvent;
-import ch.uzh.csg.nfclib.NfcEventHandler;
+import ch.uzh.csg.nfclib.NfcEventInterface;
 import ch.uzh.csg.nfclib.exceptions.NfcNotEnabledException;
 import ch.uzh.csg.nfclib.exceptions.NoNfcException;
 import ch.uzh.csg.nfclib.exceptions.TransceiveException;
@@ -18,14 +18,14 @@ import ch.uzh.csg.nfclib.util.NfcMessageSplitter;
 
 //TODO: javadoc
 public abstract class NfcTransceiver {
-	private static final String TAG = "NfcTransceiver";
+	private static final String TAG = "##NFC## NfcTransceiver";
 	
 	public static final String NULL_ARGUMENT = "The message is null";
 	public static final String NFCTRANSCEIVER_NOT_CONNECTED = "Could not write message, NfcTransceiver is not connected.";
 	public static final String UNEXPECTED_ERROR = "An error occured while transceiving the message.";
 	
 	private boolean enabled = false;
-	private NfcEventHandler eventHandler;
+	private NfcEventInterface eventHandler;
 	
 	private long userId;
 	
@@ -44,7 +44,7 @@ public abstract class NfcTransceiver {
 	
 	private Thread sessionResumeThread;
 	
-	public NfcTransceiver(NfcEventHandler eventHandler, int maxWriteLength, long userId) {
+	public NfcTransceiver(NfcEventInterface eventHandler, int maxWriteLength, long userId) {
 		this.eventHandler = eventHandler;
 		messageSplitter = new NfcMessageSplitter(maxWriteLength);
 		messageReassembler = new NfcMessageReassembler();
@@ -296,7 +296,7 @@ public abstract class NfcTransceiver {
 		this.enabled = enabled;
 	}
 	
-	protected NfcEventHandler getNfcEventHandler() {
+	protected NfcEventInterface getNfcEventHandler() {
 		return eventHandler;
 	}
 	
