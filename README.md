@@ -38,3 +38,25 @@ Installation Guidelines:
 How to Use:
 -----------
 You can have a look at or check out the <a href="https://github.com/jetonmemeti/android-nfc-payment-library">AndroidNFCPaymentLibrary</a> to see how you can use this library.
+
+If you want to import this library into your own Android project - without using the <a href="https://github.com/jetonmemeti/android-nfc-payment-library">AndroidNFCPaymentLibrary</a> - there are three important things that you need to add to your project in order for the NFC to work properly. This is also done in the <a href="https://github.com/jetonmemeti/SamplePaymentProject">SamplePaymentProject</a>.
+<ul>
+  <li>Copy the file <a href="https://github.com/jetonmemeti/android-nfc-payment-library/blob/develop-tb/res/apduservice.xml">apduservice.xml</a> to <code>&lt;project root folder&gt;\res\xml\</code>.</li>
+  <li>In <code>&lt;project root folder&gt;\res\values\strings.xml</code> add the following:<br>
+    <pre><code>&lt;!-- APDU SERVICE --&gt;</code><br>
+    <code>&lt;string name="aiddescription"&gt;ch.uzh.csg.nfclib&lt;/string&gt;</code><br>
+    <code>&lt;string name="servicedesc"&gt;Android KitKat NFC Library&lt;/string&gt;</code></pre>
+  </li>
+  <li>In the <code>AndroidManifest.xml</code> add the following:<br>
+    <pre><code>&lt;uses-sdk android:minSdkVersion="19" android:targetSdkVersion="19" /&gt;</code><br>  
+    <code>&lt;uses-feature android:name="android.hardware.nfc" android:required="true" /&gt;</code><br>  
+    <code>&lt;uses-permission android:name="android.permission.NFC" /&gt;</code></pre>
+    Inside the <code>&lt;application&gt;</code> tag add:<br>
+    <pre><code>&lt;service android:name="ch.uzh.csg.nfclib.CustomHostApduService" android:exported="true" android:permission="android.permission.BIND_NFC_SERVICE"&gt;<br>
+  &lt;intent-filter&gt;<br>
+    &lt;action android:name="android.nfc.cardemulation.action.HOST_APDU_SERVICE" /&gt;<br>
+  &lt;/intent-filter&gt;<br>
+  &lt;meta-data android:name="android.nfc.cardemulation.host_apdu_service" android:resource="@xml/apduservice" /&gt;<br>
+&lt;/service&gt;</code></pre>
+  </li>
+</ul>
