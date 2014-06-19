@@ -26,7 +26,7 @@ Installation Guidelines:
   <li>
     Install two third-party libraries to your local maven repository (read <a href="http://maven.apache.org/guides/mini/guide-3rd-party-jars-local.html">here</a> how to install 3rd party JARs).
     <ul>
-      <li>You need the <a href="https://github.com/mosabua/maven-android-sdk-deployer">maven-android-sdk-deployer</a>. Follow the instructions there.</li>
+      <li>You need the <a href="https://github.com/mosabua/maven-android-sdk-deployer">maven-android-sdk-deployer</a>. Follow the instructions there. Only platform 4.4 needs to be installed.</li>
       <li>You also need the Android Library for the ACR122u, even if you do not plan to use it in your application. You can download the .jar on the <a href="http://www.acs.com.hk/download-driver/2989/ACS-Unified-LIB-Android-111-P.zip">ACS website</a> or from this git repository <a href="https://github.com/jetonmemeti/android-kitkat-nfc-library/blob/develop-tb/acssmc-1.1.1.jar">here</a>.</li>
     </ul>
   </li>
