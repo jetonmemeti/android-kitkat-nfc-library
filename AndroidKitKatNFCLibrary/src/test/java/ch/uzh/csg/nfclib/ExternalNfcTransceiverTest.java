@@ -1,4 +1,4 @@
-package ch.uzh.csg.nfclib.transceiver;
+package ch.uzh.csg.nfclib;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -35,7 +35,6 @@ import android.util.Log;
 import ch.uzh.csg.nfclib.NfcEvent;
 import ch.uzh.csg.nfclib.NfcEventInterface;
 import ch.uzh.csg.nfclib.NfcMessage;
-import ch.uzh.csg.nfclib.testutil.TestUtils;
 import ch.uzh.csg.nfclib.util.Config;
 import ch.uzh.csg.nfclib.util.NfcMessageSplitter;
 

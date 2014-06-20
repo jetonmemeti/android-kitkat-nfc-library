@@ -1,9 +1,7 @@
-package ch.uzh.csg.nfclib.util;
+package ch.uzh.csg.nfclib;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-
-import ch.uzh.csg.nfclib.NfcMessage;
 
 /**
  * Is responsible for NfcMessage (or byte buffer) fragmentation in order to not
@@ -15,7 +13,7 @@ import ch.uzh.csg.nfclib.NfcMessage;
  */
 public class NfcMessageSplitter {
 
-	private int payloadLength;
+	private int payloadLength = Integer.MAX_VALUE;
 
 	/**
 	 * Returns a new NfcMessageSplitter to handle the fragmentation of
@@ -25,8 +23,15 @@ public class NfcMessageSplitter {
 	 *            the maximum number of bytes which can be send at once by the
 	 *            underlying NFC technology
 	 */
-	public NfcMessageSplitter(int isoDepMaxTransceiveLength) {
-		payloadLength = isoDepMaxTransceiveLength - NfcMessage.HEADER_LENGTH;
+	public NfcMessageSplitter maxTransceiveLength(int maxTransceiveLength) {
+		payloadLength = maxTransceiveLength - NfcMessage.HEADER_LENGTH;
+		return this;
+	}
+	
+	public boolean hasFragments(byte[] payload) {
+		final int len = payload.length;
+		final int fragments = (len + payloadLength - 1) / payloadLength;
+		return fragments > 1;
 	}
 
 	/**
@@ -50,20 +55,18 @@ public class NfcMessageSplitter {
 		final int fragments = (len + payloadLength - 1) / payloadLength;
 		ArrayList<NfcMessage> list = new ArrayList<NfcMessage>(fragments);
 
-		NfcMessage previous = null;
+		NfcMessage nfcMessage = null;
 		for (int i = 0; i < fragments; i++) {
 			int start = i * payloadLength;
-			boolean last = start + payloadLength > payload.length;
+			boolean last = start + payloadLength >= payload.length;
 			int end = last ? payload.length : (start + payloadLength);
 
 			byte[] temp = Arrays.copyOfRange(payload, start, end);
-			if (last) {
-				previous = new NfcMessage().payload(temp).type(NfcMessage.DEFAULT);
-				list.add(previous);
-			} else {
-				previous = new NfcMessage().payload(temp).type(NfcMessage.HAS_MORE_FRAGMENTS);
-				list.add(previous);
+			nfcMessage = new NfcMessage().payload(temp).type(NfcMessage.DEFAULT);
+			if (!last) {
+				nfcMessage.setMoreFragments();
 			}
+			list.add(nfcMessage);
 		}
 
 		return list;

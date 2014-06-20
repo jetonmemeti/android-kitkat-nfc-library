@@ -1,4 +1,4 @@
-package ch.uzh.csg.nfclib.testutil;
+package ch.uzh.csg.nfclib;
 
 import java.util.Random;
 

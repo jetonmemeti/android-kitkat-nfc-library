@@ -22,8 +22,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import android.app.Activity;
 import android.util.Log;
-import ch.uzh.csg.nfclib.testutil.TestUtils;
-import ch.uzh.csg.nfclib.transceiver.InternalNfcTransceiverTest;
 import ch.uzh.csg.nfclib.transceiver.NfcTransceiver;
 import ch.uzh.csg.nfclib.util.Config;
 

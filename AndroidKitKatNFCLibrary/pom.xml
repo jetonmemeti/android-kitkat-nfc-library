@@ -9,14 +9,7 @@
 	<name>AndroidKitKatNFCLibrary</name>
 
 	<dependencies>
-	    <!-- This is used to access Android Resources (such as the HCE and IsoDep) from a Java Pro \ 
-	    	install with https://github.com/mosabua/maven-android-sdk-deployer -->
-		<dependency>
-			<groupId>android</groupId>
-			<artifactId>android</artifactId>
-			<version>4.4.2_r3</version>
-			<scope>provided</scope>
-		</dependency>
+	    
 
 		<!-- Download the following zip http://www.acs.com.hk/download-driver/2989/ACS-Unified-LIB-Android-111-P.zip 
 			\ Install the acssmc-1.1.1.jar jar to your local maven repo: mvn install:install-file 
@@ -47,6 +40,15 @@
 			<artifactId>powermock-api-mockito</artifactId>
 			<version>1.5.5</version>
 			<scope>test</scope>
+		</dependency>
+		
+		<!-- This is used to access Android Resources (such as the HCE and IsoDep) from a Java Pro \ 
+	    	install with https://github.com/mosabua/maven-android-sdk-deployer -->
+		<dependency>
+			<groupId>android</groupId>
+			<artifactId>android</artifactId>
+			<version>4.4.2_r3</version>
+			<scope>provided</scope>
 		</dependency>
 	</dependencies>
 

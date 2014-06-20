@@ -1,24 +1,27 @@
-package ch.uzh.csg.nfclib.transceiver;
+package ch.uzh.csg.nfclib;
 
-import ch.uzh.csg.nfclib.NfcEvent;
 
 //TODO: javadoc
 public class NfcLibException extends Exception {
-	
+
 	private static final long serialVersionUID = -8780373763513187959L;
-	
-	private NfcEvent nfcEvent = null;
-	
-	public NfcLibException(String msg) {
-		super (msg);
+
+	private NfcEvent.Type nfcEvent = null;
+
+	public NfcLibException(Throwable t) {
+		super(t);
 	}
-	
-	public NfcLibException(NfcEvent event, String msg) {
+
+	public NfcLibException(String msg) {
+		super(msg);
+	}
+
+	public NfcLibException(NfcEvent.Type event, String msg) {
 		super(msg);
 		this.nfcEvent = event;
 	}
-	
-	public NfcEvent nfcEvent() {
+
+	public NfcEvent.Type nfcEvent() {
 		return nfcEvent;
 	}
 }
