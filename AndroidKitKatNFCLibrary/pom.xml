@@ -9,8 +9,6 @@
 	<name>AndroidKitKatNFCLibrary</name>
 
 	<dependencies>
-	    
-
 		<!-- Download the following zip http://www.acs.com.hk/download-driver/2989/ACS-Unified-LIB-Android-111-P.zip 
 			\ Install the acssmc-1.1.1.jar jar to your local maven repo: mvn install:install-file 
 			-Dfile=libs/acssmc-1.1.1.jar -DgroupId=com.acs.smartcard -DartifactId=acssmc 

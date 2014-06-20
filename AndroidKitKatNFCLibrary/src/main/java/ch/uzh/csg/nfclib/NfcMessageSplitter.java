@@ -28,6 +28,7 @@ public class NfcMessageSplitter {
 		return this;
 	}
 	
+	//TODO thomas: method never called - needed?
 	public boolean hasFragments(byte[] payload) {
 		final int len = payload.length;
 		final int fragments = (len + payloadLength - 1) / payloadLength;

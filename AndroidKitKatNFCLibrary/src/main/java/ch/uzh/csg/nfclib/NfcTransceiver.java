@@ -77,6 +77,8 @@ public class NfcTransceiver {
 		return transceiver;
 	}
 
+	//TODO thomas: consider resetting all states on enable/disable
+	
 	public void enable(Activity activity) {
 		try {
 			transceiver.enable(activity);
@@ -112,11 +114,20 @@ public class NfcTransceiver {
 			}
 			if (!responseUserId.isStartProtocol()) {
 				Log.d(TAG, "resume!");
+				//TODO thomas: call transceiveQueue() here to send the rest
+				//TODO thomas: do not fire NfcEvent.Type.INITIALIZED 
 			} else {
 				Log.d(TAG, "do not resume, fresh session");
 				messageQueue = null;
 				messageReassembler.clear();
 			}
+			
+			// TODO thomas: NfcEvent.Type.INITIALIZED has not been used for
+			// sporadic connection losts followed by hand-shakes and should not
+			// be used! Otherwise you cannot now in your upper layer library if
+			// you should start sending something or if the NFC library
+			// continues to send the last message.
+			
 			Log.d(TAG, "handshake completed!");
 			eventHandler.handleMessage(NfcEvent.Type.INITIALIZED, null);
 		} catch (NfcLibException e) {
@@ -129,9 +140,10 @@ public class NfcTransceiver {
 		if (bytes == null || bytes.length == 0)
 			throw new IllegalArgumentException(NULL_ARGUMENT);
 
-		if (messageQueue != null && messageQueue.size() > 0) {
+		if (messageQueue != null && !messageQueue.isEmpty()) {
 			Log.d(TAG, "still something left in the queue");
 			transceiveQueue();
+			//TODO thomas: what about the bytes parameter?
 			return;
 		}
 
@@ -158,27 +170,43 @@ public class NfcTransceiver {
 				 * the session resume thread waits before returning the response
 				 * or an error message to the event handler.
 				 */
+				
+				// TODO thomas: the thread you deleted is indeed needed! What if no
+				// re-connection happens in the given interval? Then you should
+				// throw the exception (compare previous commits).
+				
 				Log.e(TAG, "tranceive exception2", e);
 				break;
 			}
 		}
 	}
 
-	public void transceive(NfcMessage nfcMessage) throws NfcLibException, IOException {
+	protected void transceive(NfcMessage nfcMessage) throws NfcLibException, IOException {
 		NfcMessage response = transceiver.write(nfcMessage);
-		// the last message has been sent to the HCE, now we receive the
-		// response
+		// the last message has been sent to the HCE, now we receive the response
+		
+		// TODO thomas: you did not send the message, you just sent a fragment
 		eventHandler.handleMessage(NfcEvent.Type.MESSAGE_SENT, null);
-
+		
+		// TODO thomas: what if you have 4 fragments/NfcMessages to transceive?
+		// you assume here that only the response can be fragmented
+		
+		// TODO thomas: check nfcMessage.hasMoreFragments() (see
+		// https://github.com/jetonmemeti/android-kitkat-nfc-library/blob/ef702cc7770fe053fe99fb8e90416109e4ef74ef/AndroidKitKatNFCLibrary/src/ch/uzh/csg/nfclib/transceiver/NfcTransceiver.java
+		// line 133)
+		
 		while (response.hasMoreFragments()) {
+			//TODO thomas: calling handleReassembly twice here - output will be corrupt
 			messageReassembler.handleReassembly(response);
 			NfcMessage toSend = new NfcMessage().type(NfcMessage.GET_NEXT_FRAGMENT);
 			response = transceiver.write(toSend);
 			messageReassembler.handleReassembly(response);
 		}
+
 		messageQueue = null;
 		byte[] retVal = messageReassembler.data();
 		messageReassembler.clear();
 		eventHandler.handleMessage(NfcEvent.Type.MESSAGE_RECEIVED, retVal);
 	}
+	
 }
