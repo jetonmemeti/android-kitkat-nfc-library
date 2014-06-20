@@ -11,9 +11,6 @@ import android.os.Bundle;
 import android.util.Log;
 import ch.uzh.csg.nfclib.NfcEvent;
 import ch.uzh.csg.nfclib.NfcEventInterface;
-import ch.uzh.csg.nfclib.exceptions.NfcNotEnabledException;
-import ch.uzh.csg.nfclib.exceptions.NoNfcException;
-import ch.uzh.csg.nfclib.exceptions.TransceiveException;
 
 //TODO: javadoc
 public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCallback {
@@ -43,13 +40,13 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 	}
 
 	@Override
-	public void enable(Activity activity) throws NoNfcException, NfcNotEnabledException {
+	public void enable(Activity activity) throws NfcLibException {
 		nfcAdapter = NfcAdapter.getDefaultAdapter(activity);
 		if (nfcAdapter == null)
-			throw new NoNfcException();
+			throw new NfcLibException("NFC Adapter is null");
 		
 		if (!nfcAdapter.isEnabled())
-			throw new NfcNotEnabledException();
+			throw new NfcLibException("NFC is not enabled");
 		
 		/*
 		 * Based on the reported issue in
@@ -92,10 +89,10 @@ public class InternalNfcTransceiver extends NfcTransceiver implements ReaderCall
 	}
 
 	@Override
-	protected byte[] writeRaw(byte[] bytes) throws IllegalArgumentException, TransceiveException, IOException {
+	protected byte[] writeRaw(byte[] bytes) throws NfcLibException, IOException {
 		if (!isEnabled()) {
 			Log.d(TAG, "could not write message, isodep is not enabled");
-			throw new TransceiveException(NfcEvent.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
+			throw new NfcLibException(NfcEvent.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
 		}
 		
 		if (isoDep.isConnected()) {

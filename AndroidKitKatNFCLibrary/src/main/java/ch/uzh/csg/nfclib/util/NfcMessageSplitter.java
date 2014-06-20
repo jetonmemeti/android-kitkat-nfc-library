@@ -58,10 +58,10 @@ public class NfcMessageSplitter {
 
 			byte[] temp = Arrays.copyOfRange(payload, start, end);
 			if (last) {
-				previous = new NfcMessage().payload(temp).type(NfcMessage.DEFAULT).sequenceNumber(previous);
+				previous = new NfcMessage().payload(temp).type(NfcMessage.DEFAULT);
 				list.add(previous);
 			} else {
-				previous = new NfcMessage().payload(temp).type(NfcMessage.HAS_MORE_FRAGMENTS).sequenceNumber(previous);
+				previous = new NfcMessage().payload(temp).type(NfcMessage.HAS_MORE_FRAGMENTS);
 				list.add(previous);
 			}
 		}

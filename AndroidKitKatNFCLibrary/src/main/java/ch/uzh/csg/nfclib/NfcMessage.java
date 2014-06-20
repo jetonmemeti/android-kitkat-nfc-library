@@ -105,7 +105,7 @@ public class NfcMessage {
 
 	// flags
 	public boolean isStartProtocol() {
-		return (header & START_PROTOCOL) > 0;
+		return (header & START_PROTOCOL) != 0;
 	}
 
 	public NfcMessage startProtocol(boolean startProtocol) {
@@ -123,7 +123,7 @@ public class NfcMessage {
 	}
 
 	public boolean hasMoreFragments() {
-		return (header & HAS_MORE_FRAGMENTS) > 0;
+		return (header & HAS_MORE_FRAGMENTS) != 0;
 	}
 
 	public NfcMessage hasMoreFragments(boolean hasMoreFragments) {
@@ -141,7 +141,7 @@ public class NfcMessage {
 	}
 
 	public boolean isError() {
-		return (header & ERROR) > 0;
+		return (header & ERROR) != 0;
 	}
 
 	public NfcMessage error(boolean error) {

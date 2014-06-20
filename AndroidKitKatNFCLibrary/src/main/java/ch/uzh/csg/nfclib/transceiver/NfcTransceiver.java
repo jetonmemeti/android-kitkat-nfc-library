@@ -8,9 +8,6 @@ import android.util.Log;
 import ch.uzh.csg.nfclib.NfcEvent;
 import ch.uzh.csg.nfclib.NfcEventInterface;
 import ch.uzh.csg.nfclib.NfcMessage;
-import ch.uzh.csg.nfclib.exceptions.NfcNotEnabledException;
-import ch.uzh.csg.nfclib.exceptions.NoNfcException;
-import ch.uzh.csg.nfclib.exceptions.TransceiveException;
 import ch.uzh.csg.nfclib.util.Config;
 import ch.uzh.csg.nfclib.util.NfcMessageReassembler;
 import ch.uzh.csg.nfclib.util.NfcMessageSplitter;
@@ -67,22 +64,24 @@ public abstract class NfcTransceiver {
 		this.userId = userId;
 	}
 	
-	public abstract void enable(Activity activity) throws NoNfcException, NfcNotEnabledException;
+	public abstract void enable(Activity activity) throws NfcLibException;
 	
 	public abstract void disable(Activity activity);
 	
-	protected NfcMessage writeRaw(NfcMessage nfcMessage) throws IllegalArgumentException, TransceiveException, IOException {
+	protected NfcMessage writeRaw(NfcMessage nfcMessage) throws NfcLibException, IOException {
+		nfcMessage.sequenceNumber(lastNfcMessageSent);
+		lastNfcMessageSent = nfcMessage;
 		return new NfcMessage().bytes(writeRaw(nfcMessage.bytes()));
 	}
 	
-	protected abstract byte[] writeRaw(byte[] bytes) throws IllegalArgumentException, TransceiveException, IOException;
+	protected abstract byte[] writeRaw(byte[] bytes) throws NfcLibException, IOException;
 	
 	protected void initNfc() throws IOException {
 		try {
 			NfcMessage response = writeRaw(new NfcMessage().selectAidApdu());
 			if(response.isSelectAidApdu()) {
 				byte[] sendUserId = Utils.longToByteArray(userId);
-				NfcMessage msg = new NfcMessage().type(NfcMessage.USER_ID).payload(sendUserId).sequenceNumber(response);
+				NfcMessage msg = new NfcMessage().type(NfcMessage.USER_ID).payload(sendUserId);
 				NfcMessage responseUserId = writeRaw(msg);
 				if(responseUserId.type() != NfcMessage.USER_ID) {
 					Log.e(TAG, "handshake user id unexpecetd: " + responseUserId);
@@ -98,11 +97,8 @@ public abstract class NfcTransceiver {
 				Log.e(TAG, "handshake unexpecetd: " + response);
 			}
 			
-		} catch (IllegalArgumentException e) {
+		} catch (NfcLibException e) {
 			Log.e(TAG, "Illegal argument: ", e);
-			getNfcEventHandler().handleMessage(NfcEvent.INIT_FAILED, null);
-		} catch (TransceiveException e) {
-			Log.e(TAG, "TransceiveException: ", e);
 			getNfcEventHandler().handleMessage(NfcEvent.INIT_FAILED, null);
 		}
 	}
@@ -132,14 +128,18 @@ public abstract class NfcTransceiver {
 		while (!messageQueue.isEmpty()) {
 			try {
 				transceive(messageQueue.poll());
-			} catch (TransceiveException e) {
+			} catch (NfcLibException e) {
 				/*
 				 * When is thrown, there is no need to wait for retransmission
 				 * or re-init by nfc handshake.
 				 */
 				
 				sessionResumeThread.interrupt();
-				getNfcEventHandler().handleMessage(e.getNfcEvent(), e.getMessage());
+				if(e.nfcEvent() != null) {
+					getNfcEventHandler().handleMessage(e.nfcEvent(), e.getMessage());
+				} else {
+					returnErrorMessage = true;
+				}
 				break;
 			} catch (IOException e) {
 				/*
@@ -157,7 +157,7 @@ public abstract class NfcTransceiver {
 		working = false;
 	}
 	
-	private synchronized void transceive(NfcMessage nfcMessage) throws IllegalArgumentException, TransceiveException, IOException {
+	private synchronized void transceive(NfcMessage nfcMessage) throws NfcLibException, IOException {
 		NfcMessage response = write(nfcMessage, false);
 		
 		
@@ -174,7 +174,7 @@ public abstract class NfcTransceiver {
 		
 	}
 	
-	private NfcMessage write(NfcMessage nfcMessage, boolean isRetransmission) throws IllegalArgumentException, TransceiveException, IOException {
+	private NfcMessage write(NfcMessage nfcMessage, boolean isRetransmission) throws NfcLibException, IOException {
 		
 		
 		lastNfcMessageSent = nfcMessage;
@@ -182,7 +182,7 @@ public abstract class NfcTransceiver {
 		
 		if (response.isError()) {
 			Log.d(TAG, "nfc error reported");
-			throw new TransceiveException(NfcEvent.FATAL_ERROR, UNEXPECTED_ERROR);
+			throw new NfcLibException(NfcEvent.FATAL_ERROR, UNEXPECTED_ERROR);
 		}
 		
 		return response;
@@ -245,7 +245,7 @@ public abstract class NfcTransceiver {
 			}
 			
 			if (responseReady) {
-				getNfcEventHandler().handleMessage(NfcEvent.MESSAGE_RECEIVED, messageReassembler);
+				getNfcEventHandler().handleMessage(NfcEvent.MESSAGE_RECEIVED, messageReassembler.data());
 			} else if (returnErrorMessage) {
 				getNfcEventHandler().handleMessage(NfcEvent.CONNECTION_LOST, null);
 			}

@@ -14,9 +14,6 @@ import android.util.Log;
 import ch.uzh.csg.nfclib.CustomHostApduService;
 import ch.uzh.csg.nfclib.NfcEvent;
 import ch.uzh.csg.nfclib.NfcEventInterface;
-import ch.uzh.csg.nfclib.exceptions.NfcNotEnabledException;
-import ch.uzh.csg.nfclib.exceptions.NoNfcException;
-import ch.uzh.csg.nfclib.exceptions.TransceiveException;
 
 import com.acs.smartcard.Reader;
 import com.acs.smartcard.Reader.OnStateChangeListener;
@@ -60,7 +57,7 @@ public class ExternalNfcTransceiver extends NfcTransceiver {
 	}
 	
 	@Override
-	public void enable(Activity activity) throws NoNfcException, NfcNotEnabledException {
+	public void enable(Activity activity) throws NfcLibException {
 		Log.d(TAG, "enable NFC");
 		
 		UsbManager manager = (UsbManager) activity.getSystemService(Context.USB_SERVICE);
@@ -75,7 +72,7 @@ public class ExternalNfcTransceiver extends NfcTransceiver {
 		}
 		
 		if (externalDevice == null) {
-			throw new NoNfcException();
+			throw new NfcLibException("External device is not set");
 		}
 		
 		PendingIntent permissionIntent = PendingIntent.getBroadcast(activity, 0, new Intent(ACTION_USB_PERMISSION), 0);
@@ -101,10 +98,10 @@ public class ExternalNfcTransceiver extends NfcTransceiver {
 	}
 	
 	@Override
-	protected byte[] writeRaw(byte[] bytes) throws IllegalArgumentException, TransceiveException, IOException {
+	protected byte[] writeRaw(byte[] bytes) throws NfcLibException, IOException {
 		if (!isEnabled()) {
 			Log.d(TAG, "could not write message, NfcTransceiver is not enabled");
-			throw new TransceiveException(NfcEvent.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
+			throw new NfcLibException(NfcEvent.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
 		}
 		
 		if (reader.isOpened()) {
