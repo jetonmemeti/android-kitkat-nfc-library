@@ -8,30 +8,24 @@
 	<packaging>jar</packaging>
 	<name>AndroidKitKatNFCLibrary</name>
 
-	<properties>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<platform.version>4.1.1.4</platform.version>
-		<android.plugin.version>3.9.0-rc.2</android.plugin.version>
-	</properties>
-
 	<dependencies>
+	    <!-- This is used to access Android Resources (such as the HCE and IsoDep) from a Java Pro \ 
+	    	install with https://github.com/mosabua/maven-android-sdk-deployer -->
+		<dependency>
+			<groupId>android</groupId>
+			<artifactId>android</artifactId>
+			<version>4.4.2_r3</version>
+			<scope>provided</scope>
+		</dependency>
 
-		
-
-		<!-- install with the jar to your local maven repo: mvn install:install-file 
-			\ -Dfile=libs/acssmc-1.1.1.jar \ -DgroupId=com.acs.smartcard \ -DartifactId=acssmc 
-			\ -Dversion=1.1.1 \ -Dpackaging=jar -->
+		<!-- Download the following zip http://www.acs.com.hk/download-driver/2989/ACS-Unified-LIB-Android-111-P.zip 
+			\ Install the acssmc-1.1.1.jar jar to your local maven repo: mvn install:install-file 
+			-Dfile=libs/acssmc-1.1.1.jar -DgroupId=com.acs.smartcard -DartifactId=acssmc 
+			-Dversion=1.1.1 -Dpackaging=jar -->
 		<dependency>
 			<groupId>com.acs.smartcard</groupId>
 			<artifactId>acssmc</artifactId>
 			<version>1.1.1</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.mockito</groupId>
-			<artifactId>mockito-all</artifactId>
-			<version>1.9.5</version>
-			<scope>test</scope>
 		</dependency>
 
 		<dependency>
@@ -41,6 +35,7 @@
 			<scope>test</scope>
 		</dependency>
 
+		<!-- Power Mock -->
 		<dependency>
 			<groupId>org.powermock</groupId>
 			<artifactId>powermock-module-junit4</artifactId>
@@ -53,15 +48,6 @@
 			<version>1.5.5</version>
 			<scope>test</scope>
 		</dependency>
-		
-		<!-- install with https://github.com/mosabua/maven-android-sdk-deployer -->
-		<dependency>
-			<groupId>android</groupId>
-			<artifactId>android</artifactId>
-			<version>4.4.2_r3</version>
-			<scope>provided</scope>
-		</dependency>
-
 	</dependencies>
 
 	<build>
@@ -77,6 +63,5 @@
 			</plugin>
 		</plugins>
 	</build>
-
 
 </project>
