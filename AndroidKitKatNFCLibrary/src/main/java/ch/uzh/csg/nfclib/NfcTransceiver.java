@@ -42,7 +42,7 @@ public class NfcTransceiver {
 	private final NfcEvent eventHandler;
 	private final long userId;
 	
-	public NfcTransceiver(NfcEvent eventHandler, Activity activity, long userId, NfcTransceiverImpl transceiver) {
+	protected NfcTransceiver(NfcEvent eventHandler, Activity activity, long userId, NfcTransceiverImpl transceiver) {
 		this.eventHandler = eventHandler;
 		this.userId = userId;
 		this.transceiver = transceiver;
