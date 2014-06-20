@@ -8,7 +8,6 @@ import android.nfc.cardemulation.HostApduService;
 import android.os.Bundle;
 import android.util.Log;
 import ch.uzh.csg.nfclib.transceiver.NfcTransceiver;
-import ch.uzh.csg.nfclib.util.Config;
 import ch.uzh.csg.nfclib.util.NfcMessageReassembler;
 import ch.uzh.csg.nfclib.util.NfcMessageSplitter;
 import ch.uzh.csg.nfclib.util.Utils;
@@ -144,7 +143,7 @@ public class CustomHostApduService {
 			// now we have the user id, get it
 			long newUserId = Utils.byteArrayToLong(incoming.payload(), 0);
 			Log.d(TAG, "received user id " + newUserId);
-			if (newUserId == userIdReceived && (now - timeDeactivated < Config.SESSION_RESUME_THRESHOLD)) {
+			if (newUserId == userIdReceived && (now - timeDeactivated < NfcTransceiver.SESSION_RESUME_THRESHOLD)) {
 				return new NfcMessage().type(NfcMessage.USER_ID);
 			} else {
 				userIdReceived = newUserId;
@@ -225,7 +224,7 @@ public class CustomHostApduService {
 			while (cont && !Thread.currentThread().isInterrupted()) {
 				now = System.currentTimeMillis();
 				if (!working) {
-					if (now - startTime < Config.SESSION_RESUME_THRESHOLD) {
+					if (now - startTime < NfcTransceiver.SESSION_RESUME_THRESHOLD) {
 						try {
 							Thread.sleep(50);
 						} catch (InterruptedException e) {

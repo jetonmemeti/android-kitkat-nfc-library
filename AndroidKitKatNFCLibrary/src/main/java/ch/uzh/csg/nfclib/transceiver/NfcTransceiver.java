@@ -8,7 +8,6 @@ import android.util.Log;
 import ch.uzh.csg.nfclib.NfcEvent;
 import ch.uzh.csg.nfclib.NfcEventInterface;
 import ch.uzh.csg.nfclib.NfcMessage;
-import ch.uzh.csg.nfclib.util.Config;
 import ch.uzh.csg.nfclib.util.NfcMessageReassembler;
 import ch.uzh.csg.nfclib.util.NfcMessageSplitter;
 import ch.uzh.csg.nfclib.util.Utils;
@@ -31,6 +30,9 @@ import ch.uzh.csg.nfclib.util.Utils;
  *
  */
 public abstract class NfcTransceiver {
+	
+	public static final long SESSION_RESUME_THRESHOLD = 300;
+	
 	private static final String TAG = "##NFC## NfcTransceiver";
 	
 	public static final String NULL_ARGUMENT = "The message is null";
@@ -222,6 +224,8 @@ public abstract class NfcTransceiver {
 
 	private class SessionResumeTask implements Runnable {
 		
+		
+
 		public void run() {
 			long startTime = System.currentTimeMillis();
 			boolean cont = true;
@@ -234,7 +238,7 @@ public abstract class NfcTransceiver {
 						Thread.sleep(50);
 					} catch (InterruptedException e) {
 					}
-				} else if (now - startTime < Config.SESSION_RESUME_THRESHOLD) {
+				} else if (now - startTime < SESSION_RESUME_THRESHOLD) {
 					try {
 						Thread.sleep(50);
 					} catch (InterruptedException e) {
