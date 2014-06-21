@@ -31,7 +31,6 @@ public class CustomHostApduService {
 
 
 	private static long userIdReceived = 0;
-	private static long timeDeactivated = 0;
 
 	private static NfcMessage lastMessageSent;
 	private static NfcMessage lastMessageReceived;
@@ -51,7 +50,6 @@ public class CustomHostApduService {
 		messageSplitter = new NfcMessageSplitter();
 		messageReassembler = new NfcMessageReassembler();
 		userIdReceived = 0;
-		timeDeactivated = 0;
 		lastMessageSent = null;
 		lastMessageReceived = null;
 		Log.d(TAG, "init hostapdu constructor");
@@ -69,12 +67,6 @@ public class CustomHostApduService {
 		
 		NfcMessage inputMessage = new NfcMessage(bytes);
 		
-		if(!checkSequence(inputMessage)) {
-			Log.e(TAG, "The user is not in the correct activity but tries to establish a NFC connection.");
-			outputMessage = new NfcMessage(Type.EMPTY).error();
-			return prepareWrite(outputMessage);
-		}
-
 		if (inputMessage.isSelectAidApdu()) {
 			/*
 			 * The size of the returned message is specified in NfcTransceiver
@@ -90,19 +82,28 @@ public class CustomHostApduService {
 			return prepareWrite(outputMessage);
 		} else {
 			Log.d(TAG, "regular message");
+			
+			Pair<Boolean, Boolean> seqCheck = checkSequence(inputMessage); 
+			if(!seqCheck.element0() && !seqCheck.element1()) {
+				Log.e(TAG, "sequence number mismatch " + inputMessage.sequenceNumber() + " / " + (lastMessageReceived == null? 0 : lastMessageReceived.sequenceNumber()));
+				eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, inputMessage.toString());
+				outputMessage = new NfcMessage(Type.EMPTY).error();
+				return prepareWrite(outputMessage);
+			}
+			
 			//eventHandler fired in handleRequest
 			outputMessage = handleRequest(inputMessage);
 			if (outputMessage == null) {
 				Log.e(TAG, "could not handle request");
 				outputMessage = new NfcMessage(Type.EMPTY).error();
 			}
+			
 			return prepareWrite(outputMessage);
 		}
 	}
 
 	private byte[] prepareWrite(NfcMessage outputMessage) {
-		outputMessage.sequenceNumber(lastMessageSent);
-		lastMessageSent = outputMessage;
+		lastMessageSent = outputMessage.sequenceNumber(lastMessageSent);
 		byte[] retVal = outputMessage.bytes();
 		Log.d(TAG, "about to write " + Arrays.toString(retVal));
 		return retVal;
@@ -113,15 +114,11 @@ public class CustomHostApduService {
 		messageQueue.clear();
 	}
 	
-	private boolean checkSequence(NfcMessage response) {
+	private Pair<Boolean, Boolean> checkSequence(NfcMessage response) {
 		boolean check = response.check(lastMessageReceived);
-		lastMessageReceived = response;
-		if(!check) {
-			Log.e(TAG, "sequence number mismatch");
-			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, response.toString());
-			return false;
-		}
-		return true;
+		boolean repeat = response.repeatLast(lastMessageReceived);
+		lastMessageReceived = response;		
+		return new Pair<Boolean, Boolean>(check, repeat);
 	}
 
 	private NfcMessage handleRequest(NfcMessage incoming) {
@@ -142,9 +139,11 @@ public class CustomHostApduService {
 			int maxFragLen = Utils.byteArrayToInt(incoming.payload(), 8);
 			Log.d(TAG, "received user id " + newUserId+ " and max frag len: "+maxFragLen);
 			messageSplitter.maxTransceiveLength(maxFragLen);
-			if (newUserId == userIdReceived && (now - timeDeactivated < NfcTransceiver.SESSION_RESUME_THRESHOLD)) {
-				return new NfcMessage(Type.USER_ID);
+			if (incoming.isResume() && newUserId == userIdReceived && (System.currentTimeMillis() - now < NfcTransceiver.SESSION_RESUME_THRESHOLD)) {
+				Log.d(TAG, "resume");
+				return lastMessageSent.resume();
 			} else {
+				Log.d(TAG, "start fresh");
 				userIdReceived = newUserId;
 				eventHandler.handleMessage(NfcEvent.Type.INITIALIZED_HCE, Long.valueOf(userIdReceived));
 				resetStates();
@@ -194,7 +193,6 @@ public class CustomHostApduService {
 
 	public void onDeactivated(int reason) {
 		Log.d(TAG, "deactivated due to " + (reason == HostApduService.DEACTIVATION_LINK_LOSS ? "link loss" : "deselected") + "(" + reason + ")");
-		timeDeactivated = System.currentTimeMillis();
 
 		if (sessionResumeThread != null && !sessionResumeThread.isInterrupted())
 			sessionResumeThread.interrupt();

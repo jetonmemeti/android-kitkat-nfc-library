@@ -42,12 +42,14 @@ public class InternalNfcTransceiver implements ReaderCallback, NfcTransceiverImp
 
 	@Override
 	public void enable(Activity activity) throws NfcLibException {
+		Log.d(TAG, "enable internal NFC");
 		// TODO thomas: calling disable here will probably throw exception in
 		// Android, when it was not enabled! nfcAdapter.isEnabled() != reader
 		// mode enabled for the given activity. Therefore avoid calling disable
 		// on enable.
+		// -> I check if nfcadatper is enabled, so no exception expected
 		disable(activity);
-		Log.d(TAG, "enable NFC");
+		
 		nfcAdapter = createAdapter(activity);
 		if (nfcAdapter == null) {
 			throw new NfcLibException("NFC Adapter is null");

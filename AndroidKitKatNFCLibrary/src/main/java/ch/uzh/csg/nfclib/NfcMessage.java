@@ -16,7 +16,7 @@ import java.util.Arrays;
  * 
  */
 public class NfcMessage {
-	
+
 	/*
 	 * When a remote NFC device wants to talk to your service, it sends a
 	 * so-called "SELECT AID" APDU as defined in the ISO/IEC 7816-4
@@ -38,21 +38,14 @@ public class NfcMessage {
 	public static final byte[] READ_BINARY = { 0x00, (byte) 0xB0, 0x00, 0x00, 0x01 };
 
 	public static final int HEADER_LENGTH = 2;
-	
+
 	// messages, uses 3 bits at most
 	public enum Type {
-		EMPTY,
-		DEFAULT,
-		AID_SELECTED,
-		RETRANSMIT,
-		GET_NEXT_FRAGMENT,
-		WAIT_FOR_ANSWER,
-		USER_ID,
-		READ_BINARY;
+		EMPTY, DEFAULT, AID_SELECTED, RETRANSMIT, GET_NEXT_FRAGMENT, WAIT_FOR_ANSWER, USER_ID, READ_BINARY;
 	}
 
 	// flags
-	public static final byte UNUSED_3 = 0x08; // 8
+	public static final byte RESUME = 0x08; // 8
 	public static final byte REQUEST = 0x10; // 16
 	public static final byte START_PROTOCOL = 0x20; // 32
 	public static final byte HAS_MORE_FRAGMENTS = 0x40; // 64
@@ -62,28 +55,28 @@ public class NfcMessage {
 	private int header = 0;
 	private int sequenceNumber = 0;
 	private byte[] payload = new byte[0];
-	
-	public NfcMessage (byte[] input) {
+
+	public NfcMessage(byte[] input) {
 		final int len = input.length;
-		if(Arrays.equals(input, READ_BINARY)) {
+		if (Arrays.equals(input, READ_BINARY)) {
 			/*
 			 * Based on the reported issue in
-			 * https://code.google.com/p/android/issues/detail?id=58773, there is a
-			 * failure in the Android NFC protocol. The IsoDep might transceive a
-			 * READ BINARY, if the communication with the tag (or HCE) has been idle
-			 * for a given time (125ms as mentioned on the issue report). This idle
-			 * time can be changed with the EXTRA_READER_PRESENCE_CHECK_DELAY
-			 * option.
+			 * https://code.google.com/p/android/issues/detail?id=58773, there
+			 * is a failure in the Android NFC protocol. The IsoDep might
+			 * transceive a READ BINARY, if the communication with the tag (or
+			 * HCE) has been idle for a given time (125ms as mentioned on the
+			 * issue report). This idle time can be changed with the
+			 * EXTRA_READER_PRESENCE_CHECK_DELAY option.
 			 */
 			header = Type.READ_BINARY.ordinal();
 		} else if (input[0] == CLA_INS_P1_P2[0] && input[1] == CLA_INS_P1_P2[1]) {
-			//we got the initial handshake
+			// we got the initial handshake
 			header = Type.AID_SELECTED.ordinal();
 		} else {
-			//this is now a custom message
+			// this is now a custom message
 			header = input[0];
-			sequenceNumber = input[1];
-		
+			sequenceNumber = input[1] & 0xFF;
+
 			if (len > HEADER_LENGTH) {
 				final int payloadLen = len - HEADER_LENGTH;
 				payload = new byte[payloadLen];
@@ -92,7 +85,7 @@ public class NfcMessage {
 		}
 	}
 
-	public NfcMessage (Type messageType) {
+	public NfcMessage(Type messageType) {
 		header = messageType.ordinal();
 	}
 
@@ -111,7 +104,7 @@ public class NfcMessage {
 	}
 
 	public NfcMessage sequenceNumber(NfcMessage previousMessage) {
-		if(previousMessage == null) {
+		if (previousMessage == null) {
 			sequenceNumber = 0;
 		} else {
 			sequenceNumber = (previousMessage.sequenceNumber + 1) % 255;
@@ -124,10 +117,17 @@ public class NfcMessage {
 	}
 
 	public boolean check(NfcMessage previousMessage) {
-		if(previousMessage == null) {
+		if (previousMessage == null) {
 			return sequenceNumber == 0;
 		}
 		return sequenceNumber == (previousMessage.sequenceNumber + 1) % 255;
+	}
+	
+	public boolean repeatLast(NfcMessage previousMessage) {
+		if (previousMessage == null) {
+			return false;
+		}
+		return sequenceNumber == previousMessage.sequenceNumber;
 	}
 
 	// flags
@@ -184,7 +184,7 @@ public class NfcMessage {
 		error(true);
 		return this;
 	}
-	
+
 	public boolean isRequest() {
 		return (header & REQUEST) != 0;
 	}
@@ -197,38 +197,60 @@ public class NfcMessage {
 		}
 		return this;
 	}
-
-	public NfcMessage response() {
-		request(false);
-		return this;
-	}
 	
-	public NfcMessage response(boolean response) {
-		return request(!response);
-	}
-
 	public NfcMessage request() {
 		request(true);
 		return this;
 	}
 	
+	public boolean isResponse() {
+		return !isRequest();
+	}
+
+	public NfcMessage response() {
+		request(false);
+		return this;
+	}
+
+	public NfcMessage response(boolean response) {
+		return request(!response);
+	}
+	
+	public boolean isResume() {
+		return (header & RESUME) != 0;
+	}
+
+	public NfcMessage resume(boolean resume) {
+		if (resume) {
+			header = header | RESUME;
+		} else {
+			header = header & ~RESUME;
+		}
+		return this;
+	}
+	
+	public NfcMessage resume() {
+		resume(true);
+		return this;
+	}
+
 	public boolean isReadBinary() {
 		return type() == Type.READ_BINARY;
 	}
-	
+
 	public boolean isSelectAidApdu() {
-		//does not matter if request or response
+		// does not matter if request or response
 		return type() == Type.AID_SELECTED;
 	}
 
 	// serialization
 	public byte[] bytes() {
-		if(isSelectAidApdu() && isRequest()) {
+		if (isSelectAidApdu() && isRequest()) {
 			return CLA_INS_P1_P2_AID_MBPS;
 		} else if (isReadBinary()) {
-			return new byte[]{0x00};
+			return new byte[] { 0x00 };
 		}
-		
+
 		final int len = payload.length;
 		byte[] output = new byte[HEADER_LENGTH + len];
 		output[0] = (byte) header;
@@ -239,6 +261,18 @@ public class NfcMessage {
 
 	public boolean isEmpty() {
 		return header == 0 && sequenceNumber == 0 && payload.length == 0;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (o == this) {
+			return true;
+		}
+		if (!(o instanceof NfcMessage)) {
+			return false;
+		}
+		NfcMessage m = (NfcMessage) o;
+		return m.header == header && m.sequenceNumber == sequenceNumber && Arrays.equals(m.payload, payload);
 	}
 
 	@Override

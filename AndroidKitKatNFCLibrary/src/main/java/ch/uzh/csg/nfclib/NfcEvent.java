@@ -12,7 +12,8 @@ public interface NfcEvent {
 		MESSAGE_RECEIVED_PARTIAL, 
 		INITIALIZED_HCE, 
 		MESSAGE_RECEIVED_HCE, 
-		MESSAGE_SENT_HCE; 
+		MESSAGE_SENT_HCE, 
+		INIT_RETRY_FAILED; 
 	}
 
 	public abstract void handleMessage(Type event, Object object);

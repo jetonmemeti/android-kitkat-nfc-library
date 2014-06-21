@@ -51,7 +51,8 @@ public class ExternalNfcTransceiver implements NfcTransceiverImpl {
 
 	@Override
 	public void enable(Activity activity) throws NfcLibException {
-		Log.d(TAG, "enable NFC");
+		Log.d(TAG, "enable external NFC");
+		disable(activity);
 
 		UsbManager manager = (UsbManager) activity.getSystemService(Context.USB_SERVICE);
 		reader = new Reader(manager);
