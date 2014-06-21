@@ -42,6 +42,10 @@ public class InternalNfcTransceiver implements ReaderCallback, NfcTransceiverImp
 
 	@Override
 	public void enable(Activity activity) throws NfcLibException {
+		// TODO thomas: calling disable here will probably throw exception in
+		// Android, when it was not enabled! nfcAdapter.isEnabled() != reader
+		// mode enabled for the given activity. Therefore avoid calling disable
+		// on enable.
 		disable(activity);
 		Log.d(TAG, "enable NFC");
 		nfcAdapter = createAdapter(activity);
@@ -142,6 +146,11 @@ public class InternalNfcTransceiver implements ReaderCallback, NfcTransceiverImp
 		return new NfcMessage(isoDep.transceive(bytes));
 	}
 
+	// TODO thomas: This does not belong into the library. We should not handle
+	// UI stuff. Handling this is up to the user including our library. May be
+	// he has a custom layout he wants to build the AlertDialog.
+	// Furthermore, there might arise problems when the user comes back from the
+	// Settings view if onCreate is not implemented appropriately.
 	/**
 	 * Create an NFC adapter, if NFC is enabled, return the adapter, otherwise
 	 * null and open up NFC settings.
@@ -152,6 +161,7 @@ public class InternalNfcTransceiver implements ReaderCallback, NfcTransceiverImp
 	private static NfcAdapter createAdapter(final Activity activity) {
 		NfcAdapter nfcAdapter = android.nfc.NfcAdapter.getDefaultAdapter(activity);
 
+		//TODO thomas: NPE if nfcAdapter == null
 		if (!nfcAdapter.isEnabled()) {
 			AlertDialog.Builder alertbox = new AlertDialog.Builder(activity.getApplicationContext());
 			alertbox.setTitle("Info");

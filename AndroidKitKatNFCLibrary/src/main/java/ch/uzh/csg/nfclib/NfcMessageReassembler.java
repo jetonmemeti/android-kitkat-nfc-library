@@ -1,6 +1,5 @@
 package ch.uzh.csg.nfclib;
 
-
 /**
  * This class is responsible for reassembling NFC messages which have been
  * fragmented in order to be send.

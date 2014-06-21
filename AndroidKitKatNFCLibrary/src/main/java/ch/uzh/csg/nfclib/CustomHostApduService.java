@@ -193,8 +193,7 @@ public class CustomHostApduService {
 	}
 
 	public void onDeactivated(int reason) {
-		Log.d(TAG, "deactivated due to "
-		        + (reason == HostApduService.DEACTIVATION_LINK_LOSS ? "link loss" : "deselected") + "(" + reason + ")");
+		Log.d(TAG, "deactivated due to " + (reason == HostApduService.DEACTIVATION_LINK_LOSS ? "link loss" : "deselected") + "(" + reason + ")");
 		timeDeactivated = System.currentTimeMillis();
 
 		if (sessionResumeThread != null && !sessionResumeThread.isInterrupted())
