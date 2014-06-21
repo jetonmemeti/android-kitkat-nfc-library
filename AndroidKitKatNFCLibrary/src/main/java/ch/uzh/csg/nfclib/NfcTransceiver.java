@@ -168,6 +168,7 @@ public class NfcTransceiver {
     }
 
 	public synchronized void transceive(byte[] bytes) throws IllegalArgumentException {
+		//TODO: clear queue, needs to be fresh
 		if (bytes == null || bytes.length == 0)
 			throw new IllegalArgumentException(NULL_ARGUMENT);
 
@@ -185,6 +186,7 @@ public class NfcTransceiver {
 	}
 
 	private void transceiveQueue() {
+		//TODO: timeout
 		while (!messageQueue.isEmpty()) {
 			final NfcMessage request1;
 			try {
@@ -230,9 +232,10 @@ public class NfcTransceiver {
 		if(!request1.hasMoreFragments() && request1.payload().length > 0) {
 			eventHandler.handleMessage(NfcEvent.Type.MESSAGE_SENT, request1);
 		}
-		messageReassembler.handleReassembly(response);
 		
+		messageReassembler.handleReassembly(response);
 		byte[] retVal = messageReassembler.data();
+		
 		if (response.hasMoreFragments()) {
 			NfcMessage toSend = new NfcMessage(Type.GET_NEXT_FRAGMENT);
 			messageQueue.offer(toSend);
