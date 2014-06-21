@@ -103,6 +103,9 @@ public class NfcTransceiver {
 	 * NfcMessage.USER_ID ok
 	 */
 	void initNfc(boolean resume) {
+		// TODO thomas: remove boolean parameter! this is the first place where
+		// you can check if it is a resume or not.
+		
 		try {
 			Log.d(TAG, "init NFC");
 			
@@ -172,8 +175,9 @@ public class NfcTransceiver {
 		if (bytes == null || bytes.length == 0)
 			throw new IllegalArgumentException(NULL_ARGUMENT);
 
-		if (messageQueue != null && messageQueue.size() > 0) {
+		if (messageQueue != null && !messageQueue.isEmpty()) {
 			Log.d(TAG, "still something left in the queue");
+			//TODO thomas: what about the bytes parameter?
 			transceiveQueue();
 			return;
 		}
@@ -186,9 +190,41 @@ public class NfcTransceiver {
 	}
 
 	private void transceiveQueue() {
-		//TODO: timeout
+		// TODO: timeout -> if reconnection, continue with transceiveQueue(),
+		// otherwise fire the corresponding event (fatal_error or
+		// connection_lost, depends on what happened). (see SessionResumeTask in
+		// https://github.com/jetonmemeti/android-kitkat-nfc-library/blob/ef702cc7770fe053fe99fb8e90416109e4ef74ef/AndroidKitKatNFCLibrary/src/ch/uzh/csg/nfclib/transceiver/NfcTransceiver.java)
+
 		while (!messageQueue.isEmpty()) {
 			final NfcMessage request1;
+			// TODO thomas: replace your catch block with the following code and
+			// adopt your changes. there was a reason why there
+			// were two different catch blocks. one mend abort, the other mend
+			// re-connection can happen so start the timeout thread (see
+			// comments). do not re-invent the wheel ;-)
+//			} catch (NfcLibException e) {
+//				/*
+//				 * When is thrown, there is no need to wait for retransmission
+//				 * or re-init by nfc handshake.
+//				 */
+//				sessionResumeThread.interrupt();
+//				getNfcEventHandler().handleMessage(e.getNfcEvent(), e.getMessage());
+//				break;
+//			} catch (IOException e) {
+//				/*
+//				 * This might occur due to a connection lost and can be followed
+//				 * by a nfc handshake to re-init the nfc connection. Therefore
+//				 * the session resume thread waits before returning the response
+//				 * or an error message to the event handler.
+//				 */
+//	
+// 				// TODO thomas: start the thread (see
+//				// https://github.com/jetonmemeti/android-kitkat-nfc-library/blob/ef702cc7770fe053fe99fb8e90416109e4ef74ef/AndroidKitKatNFCLibrary/src/ch/uzh/csg/nfclib/transceiver/NfcTransceiver.java)
+//			
+//				Log.e(TAG, "tranceive exception2", e);
+//				break;
+//			}
+			
 			try {
 				request1 = messageQueue.peek();
 				request1.sequenceNumber(lastMessageSent);
@@ -205,7 +241,16 @@ public class NfcTransceiver {
 				 * or an error message to the event handler.
 				 */
 				Log.e(TAG, "tranceive exception", t);
+
+				// TODO thomas: there are events, we NEVER can receive together
+				// (e.g. FATAL_ERROR & SUCESS/MESSAGE_RECEIVED)! firing
+				// fatal_error here but
+				// continuing afterwards is bad. have this in mind while
+				// changing other stuff
 				eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, t);
+				
+				// TODO thomas: this is wrong! initNfc has to be called from
+				// onTagDiscovered()/reader.setOnStateChangeListener()
 				initNfc(true);
 				break;
 			}
@@ -223,6 +268,14 @@ public class NfcTransceiver {
 		}
 		
 		if(!checkSequence(response)) {
+			// TODO thomas: if sq nr is not ok, you fire the fatal_error event
+			// in checkSequence, then you fire it here again. afterwards, you
+			// continue sending the next message from the queue. if you have
+			// another 3 messages, you will receive tons of other fatal_error
+			// events in your listener. insert a break
+			// condition in transceiveQueue or smthg.
+			// Again, fatal_error means we can't do anything to restore the
+			// session, so abort everything, and receive the event only once.
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, "sequence error");
 			return;
 		}
@@ -240,6 +293,11 @@ public class NfcTransceiver {
 			NfcMessage toSend = new NfcMessage(Type.GET_NEXT_FRAGMENT);
 			messageQueue.offer(toSend);
 		} else {
+			// TODO thomas: if retVal.length==0, and no ERROR or so, then we
+			// should still fire the MESSAGE_RECEIVED event. this indicates that
+			// the protocol has finished correctly, but the counterpart did not
+			// send anything. (someone might design a protocol with an empty
+			// message)
 			if(retVal.length > 0) {
 				eventHandler.handleMessage(NfcEvent.Type.MESSAGE_RECEIVED, retVal);
 			}
@@ -247,6 +305,7 @@ public class NfcTransceiver {
 		}
 	}
 	
+	//TODO thomas: consider renaming into validSequence()
 	private boolean checkSequence(NfcMessage response) {
 		
 		boolean check = response.check(lastMessageReceived);
@@ -255,6 +314,9 @@ public class NfcTransceiver {
 		if(!check) {
 			check = response.check(was);
 			Log.e(TAG, "sequence number mismatch");
+			// TODO thomas: do not fire events from within the methods when you
+			// do so where they are called. we do not want to get two or more
+			// fatal_error events for the same problem
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, response.toString());
 			return false;
 		}

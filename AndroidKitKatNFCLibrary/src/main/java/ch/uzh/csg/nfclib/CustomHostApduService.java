@@ -70,7 +70,7 @@ public class CustomHostApduService {
 		if (inputMessage.isSelectAidApdu()) {
 			/*
 			 * The size of the returned message is specified in NfcTransceiver
-			 * and is set to 2 actually.
+			 * and is currently set to 2.
 			 */
 			Log.d(TAG, "AID selected");
 			now = System.currentTimeMillis();
@@ -117,6 +117,10 @@ public class CustomHostApduService {
 	}
 	
 	private Pair<Boolean, Boolean> checkSequence(NfcMessage response) {
+		// TODO thomas: why does checkSequence() not simply return !check &&
+		// !repeat ? its harder to read the current code.
+		// TODO thomas: therefore, the Pair class can also be deleted since it
+		// is not used elsewhere
 		boolean check = response.check(lastMessageReceived);
 		boolean repeat = response.repeatLast(lastMessageReceived);
 		lastMessageReceived = response;		

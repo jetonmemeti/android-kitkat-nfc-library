@@ -125,22 +125,22 @@ public class InternalNfcTransceiver implements ReaderCallback, NfcTransceiverImp
 		if (!isEnabled()) {
 			Log.d(TAG, "could not write message, isodep is not enabled");
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
+			//TODO thomas: not sequence number of last sent but lastReceived++
 			return new NfcMessage(Type.EMPTY).sequenceNumber(lastNfcMessageSent).error();
 		}
 
 		if (!isoDep.isConnected()) {
 			Log.d(TAG, "could not write message, isodep is no longer connected");
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
+			//TODO thomas: not sequence number of last sent but lastReceived++
 			return new NfcMessage(Type.EMPTY).sequenceNumber(lastNfcMessageSent).error();
 		}
 
 		byte[] bytes = input.bytes();
 		if (bytes.length > isoDep.getMaxTransceiveLength()) {
-			throw new IllegalArgumentException("The message length exceeds the maximum capacity of "
-			        + isoDep.getMaxTransceiveLength() + " bytes.");
+			throw new IllegalArgumentException("The message length exceeds the maximum capacity of " + isoDep.getMaxTransceiveLength() + " bytes.");
 		} else if (bytes.length > maxLen) {
-			throw new IllegalArgumentException("The message length exceeds the maximum capacity of " + maxLen
-			        + " bytes.");
+			throw new IllegalArgumentException("The message length exceeds the maximum capacity of " + maxLen + " bytes.");
 		}
 		Log.d(TAG, "about to write: " + Arrays.toString(bytes));
 		return new NfcMessage(isoDep.transceive(bytes));

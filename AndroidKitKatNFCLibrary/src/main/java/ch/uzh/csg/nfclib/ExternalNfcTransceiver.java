@@ -103,19 +103,20 @@ public class ExternalNfcTransceiver implements NfcTransceiverImpl {
 		if (!isEnabled()) {
 			Log.d(TAG, "could not write message, reader is not enabled");
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
+			//TODO thomas: not sequence number of last sent but lastReceived++
 			return new NfcMessage(Type.EMPTY).sequenceNumber(lastNfcMessageSent).error();
 		}
 
 		if (reader.isOpened()) {
 			Log.d(TAG, "could not write message, reader is no longer connected");
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
+			//TODO thomas: not sequence number of last sent but lastReceived++
 			return new NfcMessage(Type.EMPTY).sequenceNumber(lastNfcMessageSent).error();
 		}
 
 		final byte[] bytes = input.bytes();
 		if (bytes.length > maxLen) {
-			throw new IllegalArgumentException("The message length exceeds the maximum capacity of " + maxLen
-			        + " bytes.");
+			throw new IllegalArgumentException("The message length exceeds the maximum capacity of " + maxLen + " bytes.");
 		}
 
 		final byte[] recvBuffer = new byte[MAX_WRITE_LENGTH];
@@ -125,12 +126,14 @@ public class ExternalNfcTransceiver implements NfcTransceiverImpl {
 		} catch (ReaderException e) {
 			Log.d(TAG, "could not write message, ReaderException", e);
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, "ReaderException");
+			//TODO thomas: not sequence number of last sent but lastReceived++
 			return new NfcMessage(Type.EMPTY).sequenceNumber(lastNfcMessageSent).error();
 		}
 
 		if (length <= 0) {
 			Log.d(TAG, "could not write message, return value is 0");
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, "return value is 0");
+			//TODO thomas: not sequence number of last sent but lastReceived++
 			return new NfcMessage(Type.EMPTY).sequenceNumber(lastNfcMessageSent).error();
 		}
 

@@ -2,6 +2,7 @@ package ch.uzh.csg.nfclib;
 
 import java.util.Objects;
 
+// TODO thomas: delete since never used, the one time it is used it is better to not use it at all
 public class Pair<K, V> {
 
 	private final K element0;
