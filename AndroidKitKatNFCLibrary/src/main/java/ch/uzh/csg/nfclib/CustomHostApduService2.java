@@ -21,7 +21,7 @@ public class CustomHostApduService2 extends HostApduService {
 			Log.w(TAG, "no CustomHostApduService set");
 			return null;
 		}
-		return customHostApduService.processCommandApdu(bytes, extras);
+		return customHostApduService.processCommandApdu(bytes);
 	}
 
 	@Override

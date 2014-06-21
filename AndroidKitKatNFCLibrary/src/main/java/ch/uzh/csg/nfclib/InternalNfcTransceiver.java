@@ -15,6 +15,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.util.Log;
+import ch.uzh.csg.nfclib.NfcMessage.Type;
 import ch.uzh.csg.nfclib.NfcTransceiver.NfcInit;
 
 //TODO: javadoc
@@ -120,13 +121,13 @@ public class InternalNfcTransceiver implements ReaderCallback, NfcTransceiverImp
 		if (!isEnabled()) {
 			Log.d(TAG, "could not write message, isodep is not enabled");
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
-			return new NfcMessage().sequenceNumber(lastNfcMessageSent).error();
+			return new NfcMessage(Type.EMPTY).sequenceNumber(lastNfcMessageSent).error();
 		}
 
 		if (!isoDep.isConnected()) {
 			Log.d(TAG, "could not write message, isodep is no longer connected");
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
-			return new NfcMessage().sequenceNumber(lastNfcMessageSent).error();
+			return new NfcMessage(Type.EMPTY).sequenceNumber(lastNfcMessageSent).error();
 		}
 
 		byte[] bytes = input.bytes();
@@ -138,7 +139,7 @@ public class InternalNfcTransceiver implements ReaderCallback, NfcTransceiverImp
 			        + " bytes.");
 		}
 		Log.d(TAG, "about to write: " + Arrays.toString(bytes));
-		return new NfcMessage().bytes(isoDep.transceive(bytes));
+		return new NfcMessage(isoDep.transceive(bytes));
 	}
 
 	/**

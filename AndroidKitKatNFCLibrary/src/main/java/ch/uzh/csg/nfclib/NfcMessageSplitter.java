@@ -3,6 +3,8 @@ package ch.uzh.csg.nfclib;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import ch.uzh.csg.nfclib.NfcMessage.Type;
+
 /**
  * Is responsible for NfcMessage (or byte buffer) fragmentation in order to not
  * exceed the maximum allowed message length by the underlying NFC technology.
@@ -62,7 +64,7 @@ public class NfcMessageSplitter {
 			int end = last ? payload.length : (start + payloadLength);
 
 			byte[] temp = Arrays.copyOfRange(payload, start, end);
-			nfcMessage = new NfcMessage().payload(temp).type(NfcMessage.DEFAULT);
+			nfcMessage = new NfcMessage(Type.DEFAULT).payload(temp);
 			if (!last) {
 				nfcMessage.setMoreFragments();
 			}

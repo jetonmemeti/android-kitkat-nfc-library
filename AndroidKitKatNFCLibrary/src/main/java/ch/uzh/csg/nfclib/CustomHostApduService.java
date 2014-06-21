@@ -2,7 +2,10 @@ package ch.uzh.csg.nfclib;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Deque;
+import java.util.LinkedList;
 
+import ch.uzh.csg.nfclib.NfcMessage.Type;
 import android.app.Activity;
 import android.nfc.cardemulation.HostApduService;
 import android.os.Bundle;
@@ -22,27 +25,24 @@ public class CustomHostApduService {
 	private static NfcEvent eventHandler;
 	private static IMessageHandler messageHandler;
 
-	private static NfcMessageSplitter messageSplitter;
-	private static NfcMessageReassembler messageReassembler;
+	private static NfcMessageSplitter messageSplitter = new NfcMessageSplitter();
+	private static NfcMessageReassembler messageReassembler = new NfcMessageReassembler();
+	private static final Deque<NfcMessage> messageQueue = new LinkedList<NfcMessage>();
 
-	private static ArrayList<NfcMessage> fragments;
-	private static int index = 0;
 
 	private static long userIdReceived = 0;
-
 	private static long timeDeactivated = 0;
 
-	private static int lastSqNrReceived;
-	private static int lastSqNrSent;
-	private static NfcMessage lastMessage;
-	private static int nofRetransmissions = 0;
+	private static NfcMessage lastMessageSent;
+	private static NfcMessage lastMessageReceived;
+
 
 	private static Thread sessionResumeThread = null;
 	private static volatile boolean working = false;
 
 	private long now;
 
-	private static Object lock = new Object();
+	
 
 	public CustomHostApduService(Activity activity, NfcEvent eventHandler, IMessageHandler messageHandler) {
 		hostActivity = activity;
@@ -50,32 +50,30 @@ public class CustomHostApduService {
 		CustomHostApduService.messageHandler = messageHandler;
 		messageSplitter = new NfcMessageSplitter();
 		messageReassembler = new NfcMessageReassembler();
-
-		fragments = null;
-		index = 0;
 		userIdReceived = 0;
 		timeDeactivated = 0;
-
-		lastSqNrReceived = 0;
-		lastSqNrSent = 0;
-		lastMessage = null;
-		nofRetransmissions = 0;
-		Log.d(TAG, "init hostapdu1");
+		lastMessageSent = null;
+		lastMessageReceived = null;
+		Log.d(TAG, "init hostapdu constructor");
 	}
 
-	public byte[] processCommandApdu(byte[] bytes, Bundle extras) {
+	public byte[] processCommandApdu(byte[] bytes) {
 		Log.d(TAG, "processCommandApdu with " + Arrays.toString(bytes));
 
 		NfcMessage outputMessage = null;
 		if (hostActivity == null) {
 			Log.e(TAG, "The user is not in the correct activity but tries to establish a NFC connection.");
-			outputMessage = new NfcMessage().error();
+			outputMessage = new NfcMessage(Type.EMPTY).error();
 			return prepareWrite(outputMessage);
 		}
 		
-		NfcMessage inputMessage = new NfcMessage().bytes(bytes);
-
-		working = true;
+		NfcMessage inputMessage = new NfcMessage(bytes);
+		
+		if(!checkSequence(inputMessage)) {
+			Log.e(TAG, "The user is not in the correct activity but tries to establish a NFC connection.");
+			outputMessage = new NfcMessage(Type.EMPTY).error();
+			return prepareWrite(outputMessage);
+		}
 
 		if (inputMessage.isSelectAidApdu()) {
 			/*
@@ -84,26 +82,27 @@ public class CustomHostApduService {
 			 */
 			Log.d(TAG, "AID selected");
 			now = System.currentTimeMillis();
-			outputMessage = new NfcMessage().type(NfcMessage.AID_SELECTED);
+			outputMessage = new NfcMessage(Type.AID_SELECTED).response();
 			return prepareWrite(outputMessage);
 		} else if (inputMessage.isReadBinary()) {
 			Log.d(TAG, "keep alive message");
-			outputMessage = new NfcMessage().readBinary();
+			outputMessage = new NfcMessage(Type.READ_BINARY);
 			return prepareWrite(outputMessage);
 		} else {
 			Log.d(TAG, "regular message");
+			//eventHandler fired in handleRequest
 			outputMessage = handleRequest(inputMessage);
 			if (outputMessage == null) {
 				Log.e(TAG, "could not handle request");
-				outputMessage = new NfcMessage().error();
+				outputMessage = new NfcMessage(Type.EMPTY).error();
 			}
 			return prepareWrite(outputMessage);
 		}
 	}
 
 	private byte[] prepareWrite(NfcMessage outputMessage) {
-		outputMessage.sequenceNumber(lastMessage);
-		lastMessage = outputMessage;
+		outputMessage.sequenceNumber(lastMessageSent);
+		lastMessageSent = outputMessage;
 		byte[] retVal = outputMessage.bytes();
 		Log.d(TAG, "about to write " + Arrays.toString(retVal));
 		return retVal;
@@ -111,91 +110,85 @@ public class CustomHostApduService {
 
 	private void resetStates() {
 		messageReassembler.clear();
-		fragments = null;
-		index = 0;
-
-		lastSqNrReceived = 0;
-		lastSqNrSent = 0;
-		lastMessage = null;
-
-		nofRetransmissions = 0;
+		messageQueue.clear();
+	}
+	
+	private boolean checkSequence(NfcMessage response) {
+		boolean check = response.check(lastMessageReceived);
+		lastMessageReceived = response;
+		if(!check) {
+			Log.e(TAG, "sequence number mismatch");
+			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, response.toString());
+			return false;
+		}
+		return true;
 	}
 
 	private NfcMessage handleRequest(NfcMessage incoming) {
 		Log.d(TAG, "received msg: " + incoming);
 
-		// byte status = (byte) (incoming.getStatus());
-
 		if (incoming.isError()) {
-			// less than zero means the error flag is set: NfcMessage.ERROR
 			Log.d(TAG, "nfc error reported - returning null");
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, NfcTransceiver.UNEXPECTED_ERROR);
 			return null;
 		}
-
-		NfcMessage toReturn;
+		
+		boolean hasMoreFragments = incoming.hasMoreFragments();
 
 		switch (incoming.type()) {
-		case NfcMessage.USER_ID:
+		case USER_ID:
 			// now we have the user id, get it
 			long newUserId = Utils.byteArrayToLong(incoming.payload(), 0);
 			int maxFragLen = Utils.byteArrayToInt(incoming.payload(), 8);
 			Log.d(TAG, "received user id " + newUserId+ " and max frag len: "+maxFragLen);
 			messageSplitter.maxTransceiveLength(maxFragLen);
 			if (newUserId == userIdReceived && (now - timeDeactivated < NfcTransceiver.SESSION_RESUME_THRESHOLD)) {
-				return new NfcMessage().type(NfcMessage.USER_ID);
+				return new NfcMessage(Type.USER_ID);
 			} else {
 				userIdReceived = newUserId;
-				eventHandler.handleMessage(NfcEvent.Type.INITIALIZED, Long.valueOf(userIdReceived));
+				eventHandler.handleMessage(NfcEvent.Type.INITIALIZED_HCE, Long.valueOf(userIdReceived));
 				resetStates();
-				return new NfcMessage().type(NfcMessage.USER_ID).startProtocol();
+				return new NfcMessage(Type.USER_ID).startProtocol();
 			}
-		case NfcMessage.HAS_MORE_FRAGMENTS:
-			Log.d(TAG, "has more fragments");
-			messageReassembler.handleReassembly(incoming);
-			return new NfcMessage().type(NfcMessage.GET_NEXT_FRAGMENT).sequenceNumber(incoming);
-		case NfcMessage.DEFAULT:
+		case DEFAULT:
 			Log.d(TAG, "handle default");
-
-			eventHandler.handleMessage(NfcEvent.Type.MESSAGE_RECEIVED, null);
+			
+			if(hasMoreFragments) {
+				messageReassembler.handleReassembly(incoming);
+				return new NfcMessage(Type.GET_NEXT_FRAGMENT);
+			}
 
 			messageReassembler.handleReassembly(incoming);
-			// TODO: what if implementation takes to long?? polling?
-			byte[] response = messageHandler.handleMessage(messageReassembler.data());
-			fragments = messageSplitter.getFragments(response);
+			byte[] receivedData = messageReassembler.data();
 			messageReassembler.clear();
 			
-			Log.d(TAG, "returning: " + response.length + " bytes, " + fragments.size() + " fragments");
-			if (fragments.size() == 1) {
-				toReturn = fragments.get(0);
-				lastSqNrReceived = lastSqNrSent = 0;
-				index = 0;
-				fragments = null;
-				eventHandler.handleMessage(NfcEvent.Type.MESSAGE_RETURNED, null);
-			} else {
-				toReturn = fragments.get(index++);
+			eventHandler.handleMessage(NfcEvent.Type.MESSAGE_RECEIVED_HCE, receivedData);
+			byte[] response = messageHandler.handleMessage(receivedData);
+			
+			for(NfcMessage msg:messageSplitter.getFragments(response)) {
+				messageQueue.offer(msg);
 			}
-			return toReturn;
-		case NfcMessage.GET_NEXT_FRAGMENT:
-			if (fragments != null && !fragments.isEmpty() && index < fragments.size()) {
-				toReturn = fragments.get(index++);
-				if (toReturn.hasMoreFragments()) {
-					lastSqNrReceived = lastSqNrSent = 0;
-					index = 0;
-					fragments = null;
-					eventHandler.handleMessage(NfcEvent.Type.MESSAGE_RETURNED, null);
-				}
-
-				Log.d(TAG, "returning next fragment (index: " + (index - 1) + ")");
-				return toReturn;
-			} else {
-				Log.e(TAG, "IsoDep wants next fragment, but there is nothing to reply!");
-				eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, NfcTransceiver.UNEXPECTED_ERROR);
-				return new NfcMessage().error().sequenceNumber(incoming);
+			
+			Log.d(TAG, "returning: " + response.length + " bytes, " + messageQueue.size() + " fragments");
+			if (messageQueue.isEmpty()) {
+				Log.e(TAG, "nothing to return2");
+				eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, null);
 			}
+			if(messageQueue.size() == 1) {
+				eventHandler.handleMessage(NfcEvent.Type.MESSAGE_SENT_HCE, null);
+			}
+			return messageQueue.poll();
+		case GET_NEXT_FRAGMENT:
+			if (messageQueue.isEmpty()) {
+				Log.e(TAG, "nothing to return1");
+				eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, null);
+			}
+			if(messageQueue.size() == 1) {
+				eventHandler.handleMessage(NfcEvent.Type.MESSAGE_SENT_HCE, null);
+			}
+			return messageQueue.poll();
 		default:
-			return new NfcMessage().type(NfcMessage.DEFAULT);
-
+			return new NfcMessage(Type.DEFAULT);
 		}
 	}
 

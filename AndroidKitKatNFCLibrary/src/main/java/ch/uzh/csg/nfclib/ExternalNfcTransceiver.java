@@ -11,6 +11,7 @@ import android.content.IntentFilter;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.util.Log;
+import ch.uzh.csg.nfclib.NfcMessage.Type;
 import ch.uzh.csg.nfclib.NfcTransceiver.NfcInit;
 
 import com.acs.smartcard.Reader;
@@ -101,13 +102,13 @@ public class ExternalNfcTransceiver implements NfcTransceiverImpl {
 		if (!isEnabled()) {
 			Log.d(TAG, "could not write message, reader is not enabled");
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
-			return new NfcMessage().sequenceNumber(lastNfcMessageSent).error();
+			return new NfcMessage(Type.EMPTY).sequenceNumber(lastNfcMessageSent).error();
 		}
 
 		if (reader.isOpened()) {
 			Log.d(TAG, "could not write message, reader is no longer connected");
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
-			return new NfcMessage().sequenceNumber(lastNfcMessageSent).error();
+			return new NfcMessage(Type.EMPTY).sequenceNumber(lastNfcMessageSent).error();
 		}
 
 		final byte[] bytes = input.bytes();
@@ -123,18 +124,18 @@ public class ExternalNfcTransceiver implements NfcTransceiverImpl {
 		} catch (ReaderException e) {
 			Log.d(TAG, "could not write message, ReaderException", e);
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, "ReaderException");
-			return new NfcMessage().sequenceNumber(lastNfcMessageSent).error();
+			return new NfcMessage(Type.EMPTY).sequenceNumber(lastNfcMessageSent).error();
 		}
 
 		if (length <= 0) {
 			Log.d(TAG, "could not write message, return value is 0");
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, "return value is 0");
-			return new NfcMessage().sequenceNumber(lastNfcMessageSent).error();
+			return new NfcMessage(Type.EMPTY).sequenceNumber(lastNfcMessageSent).error();
 		}
 
 		byte[] result = new byte[length];
 		System.arraycopy(recvBuffer, 0, result, 0, length);
-		return new NfcMessage().bytes(result);
+		return new NfcMessage(result);
 	}
 
 	private void setOnStateChangedListener() {
