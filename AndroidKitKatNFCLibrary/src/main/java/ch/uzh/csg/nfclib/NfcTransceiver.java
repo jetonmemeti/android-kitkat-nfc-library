@@ -126,10 +126,9 @@ public class NfcTransceiver {
 			byte[] merged = Utils.merge(sendUserId, sendFragLen);
 			
 			NfcMessage msg = new NfcMessage(NfcMessage.Type.USER_ID).payload(merged).resume(resume);
-			msg.sequenceNumber(lastMessageSent);
+			//no sequence number, this is considered as part of the handshake
 			NfcMessage responseUserId = transceiver.write(msg);
 			////--> here we can get an exception
-			lastMessageSent = msg;
 			
 			if(resume) {
 				Log.d(TAG, "resume!");

@@ -86,10 +86,6 @@ public class TransceiverTest {
 		private int counter = 0;
 		private final int limit;
 		
-		public MyNfcTransceiverImpl(CustomHostApduService customHostApduService) {
-			this(customHostApduService, -1);
-		}
-		
 		public MyNfcTransceiverImpl(CustomHostApduService customHostApduService, int limit) {
 	        this.customHostApduService = customHostApduService;
 	        this.limit = limit;

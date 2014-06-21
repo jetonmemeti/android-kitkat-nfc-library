@@ -83,12 +83,14 @@ public class CustomHostApduService {
 		} else {
 			Log.d(TAG, "regular message");
 			
-			Pair<Boolean, Boolean> seqCheck = checkSequence(inputMessage); 
-			if(!seqCheck.element0() && !seqCheck.element1()) {
-				Log.e(TAG, "sequence number mismatch " + inputMessage.sequenceNumber() + " / " + (lastMessageReceived == null? 0 : lastMessageReceived.sequenceNumber()));
-				eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, inputMessage.toString());
-				outputMessage = new NfcMessage(Type.EMPTY).error();
-				return prepareWrite(outputMessage);
+			if(inputMessage.type() != Type.USER_ID) {
+				Pair<Boolean, Boolean> seqCheck = checkSequence(inputMessage); 
+				if(!seqCheck.element0() && !seqCheck.element1()) {
+					Log.e(TAG, "sequence number mismatch " + inputMessage.sequenceNumber() + " / " + (lastMessageReceived == null? 0 : lastMessageReceived.sequenceNumber()));
+					eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, inputMessage.toString());
+					outputMessage = new NfcMessage(Type.EMPTY).error();
+					return prepareWrite(outputMessage);
+				}
 			}
 			
 			//eventHandler fired in handleRequest
