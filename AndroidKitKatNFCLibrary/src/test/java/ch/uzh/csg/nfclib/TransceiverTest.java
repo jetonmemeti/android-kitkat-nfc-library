@@ -68,6 +68,7 @@ public class TransceiverTest {
 			default:
 				break;
 			}
+			System.err.println("add: "+event);
 			states.add(state);
 		}
 	};
@@ -136,7 +137,10 @@ public class TransceiverTest {
 							if (timeout > 0) {
 								Thread.sleep(timeout);
 							}
+							System.err.println("fire tagDiscovered before / "+System.currentTimeMillis());
 							handler.tagDiscovered();
+							System.err.println("fire tagDiscovered after");
+							
 						} catch (Exception e) {
 							e.printStackTrace();
 						}
@@ -206,39 +210,29 @@ public class TransceiverTest {
 		nfc.enable(null);
 		return nfc;
 	}
+	
+	final static Answer<Integer> answerd = new Answer<Integer>() {
+		@Override
+		public Integer answer(InvocationOnMock invocation) throws Throwable {
+			System.err.println("DBG:{"+Thread.currentThread().getName()+"}" + Arrays.toString(invocation.getArguments()));
+			return 0;
+		}
+	};
+	final static Answer<Integer> answere = new Answer<Integer>() {
+		@Override
+		public Integer answer(InvocationOnMock invocation) throws Throwable {
+			System.err.println("ERR:{"+Thread.currentThread().getName()+"}" + Arrays.toString(invocation.getArguments()));
+			return 0;
+		}
+	};
 
 	@Before
 	public void before() {
 		PowerMockito.mockStatic(Log.class);
-		PowerMockito.when(Log.d(Mockito.anyString(), Mockito.anyString())).then(new Answer<Integer>() {
-			@Override
-			public Integer answer(InvocationOnMock invocation) throws Throwable {
-				System.err.println("DBG:" + Arrays.toString(invocation.getArguments()));
-				return 0;
-			}
-		});
-		PowerMockito.when(Log.e(Mockito.anyString(), Mockito.anyString())).then(new Answer<Integer>() {
-			@Override
-			public Integer answer(InvocationOnMock invocation) throws Throwable {
-				System.err.println("ERR:" + Arrays.toString(invocation.getArguments()));
-				return 0;
-			}
-		});
-		PowerMockito.when(Log.w(Mockito.anyString(), Mockito.anyString())).then(new Answer<Integer>() {
-			@Override
-			public Integer answer(InvocationOnMock invocation) throws Throwable {
-				System.err.println("WRN:" + Arrays.toString(invocation.getArguments()));
-				return 0;
-			}
-		});
-		PowerMockito.when(Log.e(Mockito.anyString(), Mockito.anyString(), Mockito.any(Throwable.class))).then(
-		        new Answer<Integer>() {
-			        @Override
-			        public Integer answer(InvocationOnMock invocation) throws Throwable {
-				        System.err.println("ERR:" + Arrays.toString(invocation.getArguments()));
-				        return 0;
-			        }
-		        });
+		PowerMockito.when(Log.d(Mockito.anyString(), Mockito.anyString())).then(answerd);
+		PowerMockito.when(Log.e(Mockito.anyString(), Mockito.anyString())).then(answere);
+		PowerMockito.when(Log.w(Mockito.anyString(), Mockito.anyString())).then(answerd);
+		PowerMockito.when(Log.e(Mockito.anyString(), Mockito.anyString(), Mockito.any(Throwable.class))).then(answere);
 	}
 
 	private void reset() {
@@ -319,6 +313,15 @@ public class TransceiverTest {
 		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED_HCE, states.get(0).event);
 		assertTrue(Arrays.equals(me, states.get(0).response));
 
+	}
+	
+	@Test
+	public void testTransceiveBigMessagesLoop() throws IOException, IllegalArgumentException,
+	        InterruptedException, ExecutionException {
+		for(int i=0;i<100;i++) {
+			System.err.println("i:"+i);
+			testTransceiveBigMessages();
+		}
 	}
 
 	@Test
@@ -469,6 +472,7 @@ public class TransceiverTest {
 	public void testTransceiveResume3_ReceiverExceptionLoop() throws IOException, IllegalArgumentException,
 	        InterruptedException, ExecutionException {
 		for(int i=0;i<100;i++) {
+			System.err.println("i:"+i);
 			testTransceiveResume3_ReceiverException();
 		}
 	}
@@ -493,7 +497,7 @@ public class TransceiverTest {
 		assertTrue(Arrays.equals(me1, states.get(5).response));
 
 		reset();
-		me2 = TestUtils.getRandomBytes(3000);
+		me2 = TestUtils.getRandomBytes(3001);
 		ft = transceiver.transceive(me2);
 		ft.get();
 		
@@ -511,8 +515,6 @@ public class TransceiverTest {
 		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED_HCE, states.get(0).event);
 		assertTrue(Arrays.equals(me2, states.get(0).response));
 		assertTrue(Arrays.equals(me1, states.get(3).response));
-
-		reset();
 	}
 
 	@Test

@@ -13,7 +13,8 @@ public interface NfcEvent {
 		INITIALIZED_HCE, //TODO thomas: remove
 		MESSAGE_RECEIVED_HCE, //TODO thomas: remove
 		MESSAGE_SENT_HCE, //TODO thomas: remove
-		INIT_RETRY_FAILED; //TODO thomas:  why distinguish between this and INIT_FAILED?
+		INIT_RETRY_FAILED, //TODO thomas:  why distinguish between this and INIT_FAILED?
+		CONNECTION_LOST_HCE; //TODO TB: just for debugging
 	}
 
 	public abstract void handleMessage(Type event, Object object);

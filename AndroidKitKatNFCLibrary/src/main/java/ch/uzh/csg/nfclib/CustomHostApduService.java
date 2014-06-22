@@ -53,8 +53,8 @@ public class CustomHostApduService {
 		Log.d(TAG, "init hostapdu constructor");
 	}
 
-	//TODO: we have a sync issue somewhere: see test testTransceiveResume3_ReceiverExceptionLoop
 	public byte[] processCommandApdu(byte[] bytes) {
+		working = true;
 		Log.d(TAG, "processCommandApdu with " + Arrays.toString(bytes));
 
 		NfcMessage outputMessage = null;
@@ -98,17 +98,17 @@ public class CustomHostApduService {
 					return lastMessageSent.bytes();
 				}
 			}		
-			
 			//eventHandler fired in handleRequest
 			outputMessage = handleRequest(inputMessage);
 			if (outputMessage == null) {
 				Log.e(TAG, "could not handle request");
 				outputMessage = new NfcMessage(Type.EMPTY).error();
 			}
+			
 			if(inputMessage.type() == Type.USER_ID) {
+				Log.d(TAG, "repeat last message");
 				return outputMessage.bytes();
 			}
-			
 			return prepareWrite(outputMessage);
 		}
 	}
@@ -144,7 +144,6 @@ public class CustomHostApduService {
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, NfcTransceiver.UNEXPECTED_ERROR);
 			return null;
 		}
-		
 		boolean hasMoreFragments = incoming.hasMoreFragments();
 
 		switch (incoming.type()) {
@@ -237,7 +236,7 @@ public class CustomHostApduService {
 						}
 					} else {
 						cont = false;
-						eventHandler.handleMessage(NfcEvent.Type.CONNECTION_LOST, null);
+						eventHandler.handleMessage(NfcEvent.Type.CONNECTION_LOST_HCE, null);
 					}
 				} else {
 					cont = false;
