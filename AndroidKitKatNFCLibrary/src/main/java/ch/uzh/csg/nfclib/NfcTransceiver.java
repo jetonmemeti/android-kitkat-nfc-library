@@ -3,6 +3,13 @@ package ch.uzh.csg.nfclib;
 import java.io.IOException;
 import java.util.Deque;
 import java.util.LinkedList;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
 
 import android.app.Activity;
 import android.util.Log;
@@ -29,24 +36,29 @@ public class NfcTransceiver {
 
 	public static final int MAX_RETRY = 10;
 	public static final long SESSION_RESUME_THRESHOLD = 300;
-
-	private static final String TAG = "##NFC## NfcTransceiver";
-
 	public static final String NULL_ARGUMENT = "The message is null";
 	public static final String NFCTRANSCEIVER_NOT_CONNECTED = "Could not write message, NfcTransceiver is not connected.";
 	public static final String UNEXPECTED_ERROR = "An error occured while transceiving the message.";
+	private static final String TAG = "##NFC## NfcTransceiver";
 
-	private final Deque<NfcMessage> messageQueue = new LinkedList<NfcMessage>();
-
-	private final NfcTransceiverImpl transceiver;
 	private final NfcMessageSplitter messageSplitter = new NfcMessageSplitter();
-	private final NfcMessageReassembler messageReassembler = new NfcMessageReassembler();
+	private final NfcTransceiverImpl transceiver;
 	private final NfcEvent eventHandler;
 	private final long userId;
-	private NfcMessage lastMessagePrepareSend;
+
+	private final TagDiscoveredHandler tagDiscoveredHandler = new TagDiscoveredHandler();
+
+	private ExecutorService executorService = null;
+
+	// state
+	private final Deque<NfcMessage> messageQueue = new LinkedList<NfcMessage>();
+	private final NfcMessageReassembler messageReassembler = new NfcMessageReassembler();
 	private NfcMessage lastMessageSent;
 	private NfcMessage lastMessageReceived;
 	private int retry = 0;
+	// if the task is null, it means either we did not start or we are done.
+	private TimeoutTask task;
+	private ByteCallable byteCallable;
 
 	public NfcTransceiver(NfcEvent eventHandler, Activity activity, long userId, NfcTransceiverImpl transceiver) {
 		this.eventHandler = eventHandler;
@@ -59,17 +71,23 @@ public class NfcTransceiver {
 		this.eventHandler = eventHandler;
 		this.userId = userId;
 		if (ExternalNfcTransceiver.isExternalReaderAttached(activity)) {
-			transceiver = new ExternalNfcTransceiver(eventHandler, new NfcInit());
+			transceiver = new ExternalNfcTransceiver(eventHandler, tagDiscoveredHandler);
 		} else {
-			transceiver = new InternalNfcTransceiver(eventHandler, new NfcInit());
+			transceiver = new InternalNfcTransceiver(eventHandler, tagDiscoveredHandler);
 		}
 		messageSplitter.maxTransceiveLength(transceiver.maxLen());
 	}
 
-	class NfcInit {
-		public void init() throws IOException {
-			initNfc(false);
-		}
+	private void reset() {
+		messageReassembler.clear();
+		messageQueue.clear();
+		lastMessageSent = null;
+		lastMessageReceived = null;
+		retry = 0;
+	}
+
+	public TagDiscoveredHandler tagDiscoveredHandler() {
+		return tagDiscoveredHandler;
 	}
 
 	public NfcTransceiverImpl nfcTransceiver() {
@@ -77,23 +95,33 @@ public class NfcTransceiver {
 	}
 
 	public void enable(Activity activity) {
+		disable(activity);
+		executorService = Executors.newSingleThreadExecutor();
 		try {
 			transceiver.enable(activity);
 		} catch (NfcLibException e) {
-			Log.e(TAG, "enable failed: " + e);
+			Log.e(TAG, "enable failed: ", e);
 		}
 	}
 
 	public void disable(Activity activity) {
+		if (executorService != null) {
+			executorService.shutdown();
+			try {
+				executorService.awaitTermination(1, TimeUnit.SECONDS);
+			} catch (InterruptedException e) {
+				Log.e(TAG, "shutdown failed: ", e);
+			}
+		}
 		try {
 			transceiver.disable(activity);
 		} catch (IOException e) {
-			Log.e(TAG, "disable failed: " + e);
+			Log.e(TAG, "disable failed: ", e);
 		}
 	}
-	
-	void initNfc() {
-		initNfc(false);
+
+	private boolean isResume() {
+		return task != null;
 	}
 
 	/**
@@ -102,24 +130,17 @@ public class NfcTransceiver {
 	 * send AID -> get NfcMessage.AID / send NfcMessage.USER_ID -> get
 	 * NfcMessage.USER_ID ok
 	 */
-	void initNfc(boolean resume) {
-		// TODO thomas: remove boolean parameter! this is the first place where
-		// you can check if it is a resume or not.
-		
+	void initNfc() {
 		try {
 			Log.d(TAG, "init NFC");
-			
+
 			NfcMessage initMessage = new NfcMessage(Type.AID_SELECTED).request();
-			//no sequence number here, as this is a special message
+			// no sequence number here, as this is a special message
 			NfcMessage response = transceiver.write(initMessage);
-			
+			// //--> here we can get an exception
+
 			if (!response.isSelectAidApdu()) {
 				Log.e(TAG, "handshake unexpecetd: " + response);
-				eventHandler.handleMessage(NfcEvent.Type.INIT_FAILED, null);
-				return;
-			}
-			if(!checkSequence(response)) {
-				Log.e(TAG, "handshake unexpecetd, wrong sequence: " + response + "expceted:"+lastMessageReceived);
 				eventHandler.handleMessage(NfcEvent.Type.INIT_FAILED, null);
 				return;
 			}
@@ -127,27 +148,21 @@ public class NfcTransceiver {
 			byte[] sendUserId = Utils.longToByteArray(userId);
 			byte[] sendFragLen = Utils.intToByteArray(transceiver.maxLen());
 			byte[] merged = Utils.merge(sendUserId, sendFragLen);
-			
-			NfcMessage msg = new NfcMessage(NfcMessage.Type.USER_ID).payload(merged).resume(resume);
-			//no sequence number, this is considered as part of the handshake
+
+			NfcMessage msg = new NfcMessage(NfcMessage.Type.USER_ID).payload(merged).resume(isResume());
+			// no sequence number, this is considered as part of the handshake
 			NfcMessage responseUserId = transceiver.write(msg);
-			////--> here we can get an exception
-			
-			if(resume) {
+			// //--> here we can get an exception
+
+			if (isResume()) {
 				Log.d(TAG, "resume!");
-				retry++;
-				if(retry > MAX_RETRY) {
+				if (retry++ > MAX_RETRY) {
 					Log.e(TAG, "retry failed: " + responseUserId);
 					eventHandler.handleMessage(NfcEvent.Type.INIT_RETRY_FAILED, null);
 					return;
 				}
-				transceiveQueue();
+				transceiveQueue(true);
 			} else {
-				if(!checkSequence(responseUserId)) {
-					Log.e(TAG, "handshake unexpecetd, wrong sequence: " + responseUserId);
-					eventHandler.handleMessage(NfcEvent.Type.INIT_FAILED, null);
-					return;
-				}
 				Log.d(TAG, "do not resume, fresh session");
 				if (responseUserId.type() != NfcMessage.Type.USER_ID) {
 					Log.e(TAG, "handshake user id unexpecetd: " + responseUserId);
@@ -158,81 +173,67 @@ public class NfcTransceiver {
 				Log.d(TAG, "handshake completed!");
 				eventHandler.handleMessage(NfcEvent.Type.INITIALIZED, null);
 			}
-			
+
 		} catch (Throwable t) {
 			Log.e(TAG, "init exception: ", t);
+			t.printStackTrace();
 			eventHandler.handleMessage(NfcEvent.Type.INIT_FAILED, null);
 		}
 	}
 
-	private void reset() {
-		messageQueue.clear();
-		messageReassembler.clear();
-    }
-
-	public synchronized void transceive(byte[] bytes) throws IllegalArgumentException {
-		//TODO: clear queue, needs to be fresh
-		if (bytes == null || bytes.length == 0)
+	public synchronized Future<byte[]> transceive(byte[] bytes) throws IllegalArgumentException {
+		if (bytes == null || bytes.length == 0) {
 			throw new IllegalArgumentException(NULL_ARGUMENT);
-
-		if (messageQueue != null && !messageQueue.isEmpty()) {
-			Log.d(TAG, "still something left in the queue");
-			//TODO thomas: what about the bytes parameter?
-			transceiveQueue();
-			return;
 		}
 
-		for(NfcMessage msg: messageSplitter.getFragments(bytes)) {
+		if (task != null || !messageQueue.isEmpty()) {
+			throw new IllegalArgumentException("previous message did not finish, cannot send now!");
+		}
+
+		byteCallable = new ByteCallable();
+		FutureTask<byte[]> futureTask = new FutureTask<byte[]>(byteCallable);
+		byteCallable.future(futureTask);
+
+		task = new TimeoutTask();
+		executorService.submit(task);
+
+		for (NfcMessage msg : messageSplitter.getFragments(bytes)) {
 			messageQueue.offer(msg);
 		}
 		Log.d(TAG, "writing: " + bytes.length + " bytes, " + messageQueue.size() + " fragments");
-		transceiveQueue();
+
+		transceiveQueue(false);
+		return futureTask;
 	}
 
-	private void transceiveQueue() {
-		// TODO: timeout -> if reconnection, continue with transceiveQueue(),
-		// otherwise fire the corresponding event (fatal_error or
-		// connection_lost, depends on what happened). (see SessionResumeTask in
-		// https://github.com/jetonmemeti/android-kitkat-nfc-library/blob/ef702cc7770fe053fe99fb8e90416109e4ef74ef/AndroidKitKatNFCLibrary/src/ch/uzh/csg/nfclib/transceiver/NfcTransceiver.java)
-
+	private void transceiveQueue(boolean resume) {
 		while (!messageQueue.isEmpty()) {
-			final NfcMessage request1;
-			// TODO thomas: replace your catch block with the following code and
-			// adopt your changes. there was a reason why there
-			// were two different catch blocks. one mend abort, the other mend
-			// re-connection can happen so start the timeout thread (see
-			// comments). do not re-invent the wheel ;-)
-//			} catch (NfcLibException e) {
-//				/*
-//				 * When is thrown, there is no need to wait for retransmission
-//				 * or re-init by nfc handshake.
-//				 */
-//				sessionResumeThread.interrupt();
-//				getNfcEventHandler().handleMessage(e.getNfcEvent(), e.getMessage());
-//				break;
-//			} catch (IOException e) {
-//				/*
-//				 * This might occur due to a connection lost and can be followed
-//				 * by a nfc handshake to re-init the nfc connection. Therefore
-//				 * the session resume thread waits before returning the response
-//				 * or an error message to the event handler.
-//				 */
-//	
-// 				// TODO thomas: start the thread (see
-//				// https://github.com/jetonmemeti/android-kitkat-nfc-library/blob/ef702cc7770fe053fe99fb8e90416109e4ef74ef/AndroidKitKatNFCLibrary/src/ch/uzh/csg/nfclib/transceiver/NfcTransceiver.java)
-//			
-//				Log.e(TAG, "tranceive exception2", e);
-//				break;
-//			}
 			
 			try {
-				request1 = messageQueue.peek();
-				request1.sequenceNumber(lastMessageSent);
-				lastMessagePrepareSend = request1;
+				final NfcMessage request1 = messageQueue.peek();
+				if (!resume) {
+					request1.sequenceNumber(lastMessageSent);
+				} else {
+					resume = false;
+				}
 				NfcMessage response = transceiver.write(request1);
-				////--> here we can get an exception
-				
+				// //--> here we can get an exception
+
+				if (response == null) {
+					// we sent a request, the other side received it, handled
+					// it, but the reply did not arrive. Response will only be
+					// null when
+					// debugging. In reality, we need a timeout handler
+					return;
+				}
+				// inidcate acitivity to not run into a timeout
+				task.active();
 				handleTransceive(request1, response);
+			} catch (NfcLibException e) {
+				eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, e);
+				done(null);
+				Log.e(TAG, "tranceive exception nfc", e);
+				return;
 			} catch (Throwable t) {
 				/*
 				 * This might occur due to a connection lost and can be followed
@@ -241,33 +242,22 @@ public class NfcTransceiver {
 				 * or an error message to the event handler.
 				 */
 				Log.e(TAG, "tranceive exception", t);
-
-				// TODO thomas: there are events, we NEVER can receive together
-				// (e.g. FATAL_ERROR & SUCESS/MESSAGE_RECEIVED)! firing
-				// fatal_error here but
-				// continuing afterwards is bad. have this in mind while
-				// changing other stuff
-				eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, t);
-				
-				// TODO thomas: this is wrong! initNfc has to be called from
-				// onTagDiscovered()/reader.setOnStateChangeListener()
-				initNfc(true);
-				break;
+				return;
 			}
 		}
 	}
 
 	private void handleTransceive(NfcMessage request1, NfcMessage response) {
-		
+
 		lastMessageSent = request1;
-		//every thing is ok, remove from queue
+		// every thing is ok, remove from queue
 		final NfcMessage request2 = messageQueue.poll();
-		//sanity check
-		if(!request1.equals(request2)) {
+		// sanity check
+		if (!request1.equals(request2)) {
 			Log.e(TAG, "sync exception");
 		}
-		
-		if(!checkSequence(response)) {
+
+		if (!validateSequence(response)) {
 			// TODO thomas: if sq nr is not ok, you fire the fatal_error event
 			// in checkSequence, then you fire it here again. afterwards, you
 			// continue sending the next message from the queue. if you have
@@ -279,16 +269,16 @@ public class NfcTransceiver {
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, "sequence error");
 			return;
 		}
-		
+
 		// the last message has been sent to the HCE, now we receive the
 		// response
-		if(!request1.hasMoreFragments() && request1.payload().length > 0) {
+		if (!request1.hasMoreFragments() && request1.payload().length > 0) {
 			eventHandler.handleMessage(NfcEvent.Type.MESSAGE_SENT, request1);
 		}
-		
+
 		messageReassembler.handleReassembly(response);
 		byte[] retVal = messageReassembler.data();
-		
+
 		if (response.hasMoreFragments()) {
 			NfcMessage toSend = new NfcMessage(Type.GET_NEXT_FRAGMENT);
 			messageQueue.offer(toSend);
@@ -298,20 +288,30 @@ public class NfcTransceiver {
 			// the protocol has finished correctly, but the counterpart did not
 			// send anything. (someone might design a protocol with an empty
 			// message)
-			if(retVal.length > 0) {
+			if (retVal.length > 0) {
 				eventHandler.handleMessage(NfcEvent.Type.MESSAGE_RECEIVED, retVal);
+				done(retVal);
 			}
 			messageReassembler.clear();
 		}
 	}
-	
-	//TODO thomas: consider renaming into validSequence()
-	private boolean checkSequence(NfcMessage response) {
-		
+
+	private void done(byte[] retVal) {
+		// we are done
+		task.shutdown();
+		task = null;
+		messageReassembler.clear();
+		messageQueue.clear();
+		retry = 0;
+		byteCallable.set(retVal);
+	}
+
+	private boolean validateSequence(NfcMessage response) {
+
 		boolean check = response.check(lastMessageReceived);
 		NfcMessage was = lastMessageReceived;
 		lastMessageReceived = response;
-		if(!check) {
+		if (!check) {
 			check = response.check(was);
 			Log.e(TAG, "sequence number mismatch");
 			// TODO thomas: do not fire events from within the methods when you
@@ -321,5 +321,84 @@ public class NfcTransceiver {
 			return false;
 		}
 		return true;
+	}
+
+	private static class ByteCallable implements Callable<byte[]> {
+		private byte[] value;
+		private FutureTask<byte[]> futureTask;
+
+		public void set(byte[] value) {
+			synchronized (this) {
+				this.value = value;
+			}
+			futureTask.run();
+		}
+
+		public void future(FutureTask<byte[]> futureTask) {
+			synchronized (this) {
+				this.futureTask = futureTask;
+			}
+		}
+
+		@Override
+		public byte[] call() throws Exception {
+			synchronized (this) {
+				return value;
+			}
+		}
+	};
+	
+	public class TagDiscoveredHandler {
+		public void tagDiscovered() throws IOException {
+			initNfc();
+		}
+	}
+
+	private class TimeoutTask implements Runnable {
+
+		private final CountDownLatch latch = new CountDownLatch(1);
+		private long lastAcitivity;
+
+		public TimeoutTask() {
+			active();
+		}
+
+		public void active() {
+			synchronized (this) {
+				lastAcitivity = System.currentTimeMillis();
+			}
+		}
+
+		public void shutdown() {
+			latch.countDown();
+		}
+
+		@Override
+		public void run() {
+			try {
+				long waitTime = NfcTransceiver.SESSION_RESUME_THRESHOLD;
+				boolean timeout = false;
+				while (latch.getCount() > 0) {
+					latch.await(waitTime, TimeUnit.MILLISECONDS);
+					if (System.currentTimeMillis() - lastAcitivity < NfcTransceiver.SESSION_RESUME_THRESHOLD) {
+						waitTime = System.currentTimeMillis() - lastAcitivity;
+					} else {
+						timeout = true;
+						break;
+					}
+				}
+
+				if (timeout && latch.getCount() > 0) {
+					Log.e(TAG, "connection lost");
+					eventHandler.handleMessage(NfcEvent.Type.CONNECTION_LOST, null);
+					done(null);
+				}
+
+			} catch (Throwable t) {
+				t.printStackTrace();
+			}
+
+		}
+
 	}
 }

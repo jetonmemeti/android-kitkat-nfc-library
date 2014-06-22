@@ -1,15 +1,13 @@
 package ch.uzh.csg.nfclib;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
 import java.util.LinkedList;
 
-import ch.uzh.csg.nfclib.NfcMessage.Type;
 import android.app.Activity;
 import android.nfc.cardemulation.HostApduService;
-import android.os.Bundle;
 import android.util.Log;
+import ch.uzh.csg.nfclib.NfcMessage.Type;
 
 //TODO: javadoc
 public class CustomHostApduService {
@@ -55,6 +53,7 @@ public class CustomHostApduService {
 		Log.d(TAG, "init hostapdu constructor");
 	}
 
+	//TODO: we have a sync issue somewhere: see test testTransceiveResume3_ReceiverExceptionLoop
 	public byte[] processCommandApdu(byte[] bytes) {
 		Log.d(TAG, "processCommandApdu with " + Arrays.toString(bytes));
 
@@ -75,11 +74,15 @@ public class CustomHostApduService {
 			Log.d(TAG, "AID selected");
 			now = System.currentTimeMillis();
 			outputMessage = new NfcMessage(Type.AID_SELECTED).response();
-			return prepareWrite(outputMessage);
+			return outputMessage.bytes();
+			//no sequnece number in handshake
+			//return prepareWrite(outputMessage);
 		} else if (inputMessage.isReadBinary()) {
 			Log.d(TAG, "keep alive message");
 			outputMessage = new NfcMessage(Type.READ_BINARY);
-			return prepareWrite(outputMessage);
+			return outputMessage.bytes();
+			//no sequnece number in handshake
+			//return prepareWrite(outputMessage);
 		} else {
 			Log.d(TAG, "regular message");
 			
@@ -91,13 +94,19 @@ public class CustomHostApduService {
 					outputMessage = new NfcMessage(Type.EMPTY).error();
 					return prepareWrite(outputMessage);
 				}
-			}
+				if(seqCheck.element1()) {
+					return lastMessageSent.bytes();
+				}
+			}		
 			
 			//eventHandler fired in handleRequest
 			outputMessage = handleRequest(inputMessage);
 			if (outputMessage == null) {
 				Log.e(TAG, "could not handle request");
 				outputMessage = new NfcMessage(Type.EMPTY).error();
+			}
+			if(inputMessage.type() == Type.USER_ID) {
+				return outputMessage.bytes();
 			}
 			
 			return prepareWrite(outputMessage);
@@ -151,6 +160,8 @@ public class CustomHostApduService {
 			} else {
 				Log.d(TAG, "start fresh");
 				userIdReceived = newUserId;
+				lastMessageSent = null;
+				lastMessageReceived = null;
 				eventHandler.handleMessage(NfcEvent.Type.INITIALIZED_HCE, Long.valueOf(userIdReceived));
 				resetStates();
 				return new NfcMessage(Type.USER_ID).startProtocol();

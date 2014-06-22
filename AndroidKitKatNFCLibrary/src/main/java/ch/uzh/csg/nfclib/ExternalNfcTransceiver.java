@@ -12,7 +12,7 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.util.Log;
 import ch.uzh.csg.nfclib.NfcMessage.Type;
-import ch.uzh.csg.nfclib.NfcTransceiver.NfcInit;
+import ch.uzh.csg.nfclib.NfcTransceiver.TagDiscoveredHandler;
 
 import com.acs.smartcard.Reader;
 import com.acs.smartcard.Reader.OnStateChangeListener;
@@ -38,13 +38,12 @@ public class ExternalNfcTransceiver implements NfcTransceiverImpl {
 	private BroadcastReceiver broadcastReceiver;
 
 	private final NfcEvent eventHandler;
-	private final NfcInit nfcInit;
+	private final TagDiscoveredHandler nfcInit;
 
 	private Reader reader;
 	private int maxLen;
-	private NfcMessage lastNfcMessageSent;
 
-	public ExternalNfcTransceiver(NfcEvent eventHandler, NfcInit nfcInit) {
+	public ExternalNfcTransceiver(NfcEvent eventHandler, TagDiscoveredHandler nfcInit) {
 		this.eventHandler = eventHandler;
 		this.nfcInit = nfcInit;
 	}
@@ -52,7 +51,6 @@ public class ExternalNfcTransceiver implements NfcTransceiverImpl {
 	@Override
 	public void enable(Activity activity) throws NfcLibException {
 		Log.d(TAG, "enable external NFC");
-		disable(activity);
 
 		UsbManager manager = (UsbManager) activity.getSystemService(Context.USB_SERVICE);
 		reader = new Reader(manager);
@@ -97,21 +95,16 @@ public class ExternalNfcTransceiver implements NfcTransceiverImpl {
 	@Override
 	public NfcMessage write(NfcMessage input) throws NfcLibException, IOException {
 
-		input.sequenceNumber(lastNfcMessageSent);
-		lastNfcMessageSent = input;
-
 		if (!isEnabled()) {
 			Log.d(TAG, "could not write message, reader is not enabled");
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
-			//TODO thomas: not sequence number of last sent but lastReceived++
-			return new NfcMessage(Type.EMPTY).sequenceNumber(lastNfcMessageSent).error();
+			return new NfcMessage(Type.EMPTY).sequenceNumber(input).error();
 		}
 
 		if (reader.isOpened()) {
 			Log.d(TAG, "could not write message, reader is no longer connected");
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
-			//TODO thomas: not sequence number of last sent but lastReceived++
-			return new NfcMessage(Type.EMPTY).sequenceNumber(lastNfcMessageSent).error();
+			return new NfcMessage(Type.EMPTY).sequenceNumber(input).error();
 		}
 
 		final byte[] bytes = input.bytes();
@@ -126,15 +119,13 @@ public class ExternalNfcTransceiver implements NfcTransceiverImpl {
 		} catch (ReaderException e) {
 			Log.d(TAG, "could not write message, ReaderException", e);
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, "ReaderException");
-			//TODO thomas: not sequence number of last sent but lastReceived++
-			return new NfcMessage(Type.EMPTY).sequenceNumber(lastNfcMessageSent).error();
+			return new NfcMessage(Type.EMPTY).sequenceNumber(input).error();
 		}
 
 		if (length <= 0) {
 			Log.d(TAG, "could not write message, return value is 0");
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, "return value is 0");
-			//TODO thomas: not sequence number of last sent but lastReceived++
-			return new NfcMessage(Type.EMPTY).sequenceNumber(lastNfcMessageSent).error();
+			return new NfcMessage(Type.EMPTY).sequenceNumber(input).error();
 		}
 
 		byte[] result = new byte[length];
@@ -149,7 +140,7 @@ public class ExternalNfcTransceiver implements NfcTransceiverImpl {
 				if (currState == Reader.CARD_PRESENT) {
 					try {
 						initCard();
-						nfcInit.init();
+						nfcInit.tagDiscovered();
 					} catch (ReaderException e) {
 						Log.e(TAG, "Could not connnect reader1: ", e);
 						eventHandler.handleMessage(NfcEvent.Type.INIT_FAILED, null);

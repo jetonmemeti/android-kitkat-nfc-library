@@ -284,6 +284,8 @@ public class NfcMessage {
 			sb.append("head: ").append(Integer.toHexString(header));
 			sb.append("/").append(sequenceNumber);
 			sb.append(",len:").append(payload.length);
+			sb.append(",res:").append(isResume());
+			sb.append(",req:").append(isRequest());
 		}
 		return sb.toString();
 	}

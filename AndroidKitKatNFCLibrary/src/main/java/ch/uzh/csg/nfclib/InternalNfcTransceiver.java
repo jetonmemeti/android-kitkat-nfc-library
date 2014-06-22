@@ -4,19 +4,14 @@ import java.io.IOException;
 import java.util.Arrays;
 
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.content.DialogInterface;
-import android.content.Intent;
 import android.nfc.NfcAdapter;
 import android.nfc.NfcAdapter.ReaderCallback;
 import android.nfc.Tag;
 import android.nfc.tech.IsoDep;
-import android.os.Build;
 import android.os.Bundle;
-import android.provider.Settings;
 import android.util.Log;
 import ch.uzh.csg.nfclib.NfcMessage.Type;
-import ch.uzh.csg.nfclib.NfcTransceiver.NfcInit;
+import ch.uzh.csg.nfclib.NfcTransceiver.TagDiscoveredHandler;
 
 //TODO: javadoc
 public class InternalNfcTransceiver implements ReaderCallback, NfcTransceiverImpl {
@@ -28,15 +23,16 @@ public class InternalNfcTransceiver implements ReaderCallback, NfcTransceiverImp
 	private static final int MAX_WRITE_LENGTH = 245;
 
 	private final NfcEvent eventHandler;
-	private final NfcInit nfcInit;
+	private final TagDiscoveredHandler nfcInit;
 
 	private NfcAdapter nfcAdapter;
 	private IsoDep isoDep;
 	private int maxLen = Integer.MAX_VALUE;
-	private NfcMessage lastNfcMessageSent;
-	private boolean enabled = false;
+	// not sure if this is called from different threads. Make it volatile just
+	// in case.
+	private volatile boolean enabled = false;
 
-	public InternalNfcTransceiver(NfcEvent eventHandler, NfcInit nfcInit) {
+	public InternalNfcTransceiver(NfcEvent eventHandler, TagDiscoveredHandler nfcInit) {
 		this.eventHandler = eventHandler;
 		this.nfcInit = nfcInit;
 	}
@@ -44,9 +40,8 @@ public class InternalNfcTransceiver implements ReaderCallback, NfcTransceiverImp
 	@Override
 	public void enable(Activity activity) throws NfcLibException {
 		Log.d(TAG, "enable internal NFC");
-		disable(activity);
-		
-		nfcAdapter = createAdapter(activity);
+
+		nfcAdapter = android.nfc.NfcAdapter.getDefaultAdapter(activity);
 		if (nfcAdapter == null) {
 			throw new NfcLibException("NFC Adapter is null");
 		}
@@ -82,7 +77,7 @@ public class InternalNfcTransceiver implements ReaderCallback, NfcTransceiverImp
 				Log.d(TAG, "tried close!");
 			}
 		}
-		if (nfcAdapter != null && nfcAdapter.isEnabled() && enabled) {
+		if (nfcAdapter != null && enabled) {
 			nfcAdapter.disableReaderMode(activity);
 		}
 		enabled = false;
@@ -92,9 +87,11 @@ public class InternalNfcTransceiver implements ReaderCallback, NfcTransceiverImp
 	public boolean isEnabled() {
 		if (nfcAdapter == null) {
 			return false;
-		} else {
-			return nfcAdapter.isEnabled();
 		}
+		if (!enabled) {
+			return false;
+		}
+		return nfcAdapter.isEnabled();
 	}
 
 	@Override
@@ -103,7 +100,7 @@ public class InternalNfcTransceiver implements ReaderCallback, NfcTransceiverImp
 		isoDep = IsoDep.get(tag);
 		try {
 			isoDep.connect();
-			nfcInit.init();
+			nfcInit.tagDiscovered();
 		} catch (IOException e) {
 			Log.e(TAG, "Could not connnect isodep: ", e);
 			eventHandler.handleMessage(NfcEvent.Type.INIT_FAILED, null);
@@ -118,50 +115,50 @@ public class InternalNfcTransceiver implements ReaderCallback, NfcTransceiverImp
 
 	@Override
 	public NfcMessage write(NfcMessage input) throws IOException {
-		// sequenz number are handled here
-		input.sequenceNumber(lastNfcMessageSent);
-		lastNfcMessageSent = input;
 
 		if (!isEnabled()) {
 			Log.d(TAG, "could not write message, isodep is not enabled");
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
-			//TODO thomas: not sequence number of last sent but lastReceived++
-			return new NfcMessage(Type.EMPTY).sequenceNumber(lastNfcMessageSent).error();
+			return new NfcMessage(Type.EMPTY).sequenceNumber(input).error();
 		}
 
 		if (!isoDep.isConnected()) {
 			Log.d(TAG, "could not write message, isodep is no longer connected");
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
-			//TODO thomas: not sequence number of last sent but lastReceived++
-			return new NfcMessage(Type.EMPTY).sequenceNumber(lastNfcMessageSent).error();
+			return new NfcMessage(Type.EMPTY).sequenceNumber(input).error();
 		}
 
 		byte[] bytes = input.bytes();
 		if (bytes.length > isoDep.getMaxTransceiveLength()) {
-			throw new IllegalArgumentException("The message length exceeds the maximum capacity of " + isoDep.getMaxTransceiveLength() + " bytes.");
+			throw new IllegalArgumentException("The message length exceeds the maximum capacity of "
+			        + isoDep.getMaxTransceiveLength() + " bytes.");
 		} else if (bytes.length > maxLen) {
-			throw new IllegalArgumentException("The message length exceeds the maximum capacity of " + maxLen + " bytes.");
+			throw new IllegalArgumentException("The message length exceeds the maximum capacity of " + maxLen
+			        + " bytes.");
 		}
 		Log.d(TAG, "about to write: " + Arrays.toString(bytes));
 		return new NfcMessage(isoDep.transceive(bytes));
 	}
 
-	// TODO thomas: This does not belong into the library. We should not handle
-	// UI stuff. Handling this is up to the user including our library. May be
-	// he has a custom layout he wants to build the AlertDialog.
-	// Furthermore, there might arise problems when the user comes back from the
-	// Settings view if onCreate is not implemented appropriately.
 	/**
 	 * Create an NFC adapter, if NFC is enabled, return the adapter, otherwise
 	 * null and open up NFC settings.
 	 * 
+	 * This does not belong into the library. We should not handle UI stuff.
+	 * Handling this is up to the user including our library. May be he has a
+	 * custom layout he wants to build the AlertDialog. Furthermore, there might
+	 * arise problems when the user comes back from the Settings view if
+	 * onCreate is not implemented appropriately.
+	 * 
 	 * @param context
 	 * @return
 	 */
-	private static NfcAdapter createAdapter(final Activity activity) {
+	/*private static NfcAdapter createAdapter(final Activity activity) {
 		NfcAdapter nfcAdapter = android.nfc.NfcAdapter.getDefaultAdapter(activity);
 
-		//TODO thomas: NPE if nfcAdapter == null
+		if (nfcAdapter == null) {
+			return null;
+		}
 		if (!nfcAdapter.isEnabled()) {
 			AlertDialog.Builder alertbox = new AlertDialog.Builder(activity.getApplicationContext());
 			alertbox.setTitle("Info");
@@ -188,6 +185,6 @@ public class InternalNfcTransceiver implements ReaderCallback, NfcTransceiverImp
 			return null;
 		}
 		return nfcAdapter;
-	}
+	}*/
 
 }
