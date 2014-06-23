@@ -10,6 +10,7 @@ Prerequisites:
 <ul>
   <li><a href="http://www.oracle.com/technetwork/java/javase/downloads/index.html">Java JDK 7</a></li>
   <li><a href="http://www.eclipse.org/downloads/">Eclipse 4.3</a></li>
+  <li><a href="http://maven.apache.org/download.cgi">Maven 3.2.1</a></li>
   <li><a href="http://developer.android.com/sdk/index.html">Android SDK</a>. In the <a href="http://developer.android.com/tools/help/sdk-manager.html">Android SDK Manager</a> you need to install at least the <i>Android SDK Tools</i>, the <i>Android SDK Platform-tools</i>, and <i>Android 4.4.2 (API 19)</i>. For the API 19 the following items are mandatory:
     <ul>
       <li>SDK Plattform</li>
