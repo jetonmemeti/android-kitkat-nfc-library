@@ -6,7 +6,6 @@ public interface NfcEvent {
 		INIT_FAILED, //exit condition
 		INITIALIZED, //may continue
 		FATAL_ERROR, //exit condition
-		MESSAGE_SENT, //TODO: same as message_received -> remove!
 		MESSAGE_RECEIVED, //exit condition
 		CONNECTION_LOST, //exit condition
 	}

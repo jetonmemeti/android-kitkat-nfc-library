@@ -4,6 +4,6 @@ package ch.uzh.csg.nfclib;
 public interface IMessageHandler {
 	
 	//blocking! avoid long calculations
-	public byte[] handleMessage(byte[] message);
+	public byte[] handleMessage(byte[] message, SendLater sendLater2);
 	
 }

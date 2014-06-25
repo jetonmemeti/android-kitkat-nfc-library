@@ -33,6 +33,8 @@ public class NfcResponder {
 	private static volatile boolean working = false;
 
 	private long now;
+	
+	//private SendLater sendLater;
 
 	
 
@@ -48,7 +50,7 @@ public class NfcResponder {
 		Log.d(TAG, "init hostapdu constructor");
 	}
 
-	public byte[] processCommandApdu(byte[] bytes) {
+	public byte[] processCommandApdu(byte[] bytes, SendLater sendLater2) {
 		working = true;
 		Log.d(TAG, "processCommandApdu with " + Arrays.toString(bytes));
 
@@ -94,10 +96,11 @@ public class NfcResponder {
 				}
 			}		
 			//eventHandler fired in handleRequest
-			outputMessage = handleRequest(inputMessage);
+			outputMessage = handleRequest(inputMessage, sendLater2);
 			if (outputMessage == null) {
-				Log.e(TAG, "could not handle request");
-				outputMessage = new NfcMessage(Type.EMPTY).error();
+				//Log.e(TAG, "could not handle request");
+				//outputMessage = new NfcMessage(Type.EMPTY).error();
+				return null;
 			}
 			
 			if(inputMessage.type() == Type.USER_ID) {
@@ -108,7 +111,7 @@ public class NfcResponder {
 		}
 	}
 
-	private byte[] prepareWrite(NfcMessage outputMessage) {
+	static byte[] prepareWrite(NfcMessage outputMessage) {
 		lastMessageSent = outputMessage.sequenceNumber(lastMessageSent);
 		byte[] retVal = outputMessage.bytes();
 		Log.d(TAG, "about to write " + Arrays.toString(retVal));
@@ -131,7 +134,7 @@ public class NfcResponder {
 		return new Pair<Boolean, Boolean>(check, repeat);
 	}
 
-	private NfcMessage handleRequest(NfcMessage incoming) {
+	private NfcMessage handleRequest(NfcMessage incoming, SendLater sendLater2) {
 		Log.d(TAG, "received msg: " + incoming);
 
 		if (incoming.isError()) {
@@ -173,34 +176,35 @@ public class NfcResponder {
 			messageReassembler.clear();
 			
 			eventHandler.handleMessage(NfcEvent.Type.MESSAGE_RECEIVED, receivedData);
-			byte[] response = messageHandler.handleMessage(receivedData);
+			byte[] response = messageHandler.handleMessage(receivedData, sendLater2);
 			
-			for(NfcMessage msg:messageSplitter.getFragments(response)) {
-				messageQueue.offer(msg);
-			}
-			
-			Log.d(TAG, "returning: " + response.length + " bytes, " + messageQueue.size() + " fragments");
-			if (messageQueue.isEmpty()) {
-				Log.e(TAG, "nothing to return2");
-				eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, null);
-			}
-			if(messageQueue.size() == 1) {
-				eventHandler.handleMessage(NfcEvent.Type.MESSAGE_SENT, null);
-			}
-			return messageQueue.poll();
+			return fragmentData(response);
 		case GET_NEXT_FRAGMENT:
 			if (messageQueue.isEmpty()) {
 				Log.e(TAG, "nothing to return1");
 				eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, null);
-			}
-			if(messageQueue.size() == 1) {
-				eventHandler.handleMessage(NfcEvent.Type.MESSAGE_SENT, null);
 			}
 			return messageQueue.poll();
 		default:
 			return new NfcMessage(Type.DEFAULT);
 		}
 	}
+
+	static NfcMessage fragmentData(byte[] response) {
+		if(response == null) {
+			return null;
+		}
+	    for(NfcMessage msg:messageSplitter.getFragments(response)) {
+	    	messageQueue.offer(msg);
+	    }
+	    
+	    Log.d(TAG, "returning: " + response.length + " bytes, " + messageQueue.size() + " fragments");
+	    if (messageQueue.isEmpty()) {
+	    	Log.e(TAG, "nothing to return2");
+	    	eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, null);
+	    }
+	    return messageQueue.poll();
+    }
 
 	public void onDeactivated(int reason) {
 		Log.d(TAG, "deactivated due to " + (reason == HostApduService.DEACTIVATION_LINK_LOSS ? "link loss" : "deselected") + "(" + reason + ")");

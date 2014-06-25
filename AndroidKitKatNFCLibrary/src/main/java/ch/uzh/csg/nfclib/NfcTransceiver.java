@@ -96,7 +96,6 @@ public class NfcTransceiver {
 	}
 
 	public void enable(Activity activity) {
-		disable(activity);
 		executorService = Executors.newSingleThreadExecutor();
 		try {
 			transceiver.enable(activity);
@@ -134,7 +133,7 @@ public class NfcTransceiver {
 	void initNfc() {
 		try {
 			Log.d(TAG, "init NFC");
-
+			
 			NfcMessage initMessage = new NfcMessage(Type.AID_SELECTED).request();
 			// no sequence number here, as this is a special message
 			NfcMessage response = transceiver.write(initMessage);
@@ -277,12 +276,6 @@ public class NfcTransceiver {
 		if (!validateSequence(response)) {
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, "sequence error");
 			return false;
-		}
-
-		// the last message has been sent to the HCE, now we receive the
-		// response
-		if (!request1.hasMoreFragments() && request1.type() != Type.GET_NEXT_FRAGMENT) {
-			eventHandler.handleMessage(NfcEvent.Type.MESSAGE_SENT, request1);
 		}
 
 		messageReassembler.handleReassembly(response);
