@@ -10,14 +10,9 @@ import android.util.Log;
 import ch.uzh.csg.nfclib.NfcMessage.Type;
 
 //TODO: javadoc
-public class CustomHostApduService {
+public class NfcResponder {
 
 	public static final String TAG = "##NFC## CustomHostApduService";
-
-	/*
-	 * NXP chip supports max 255 bytes (10 bytes is header of nfc protocol)
-	 */
-	//public static final int MAX_WRITE_LENGTH = 245;
 
 	private static Activity hostActivity;
 	private static NfcEvent eventHandler;
@@ -41,10 +36,10 @@ public class CustomHostApduService {
 
 	
 
-	public CustomHostApduService(Activity activity, NfcEvent eventHandler, IMessageHandler messageHandler) {
+	public NfcResponder(Activity activity, NfcEvent eventHandler, IMessageHandler messageHandler) {
 		hostActivity = activity;
-		CustomHostApduService.eventHandler = eventHandler;
-		CustomHostApduService.messageHandler = messageHandler;
+		NfcResponder.eventHandler = eventHandler;
+		NfcResponder.messageHandler = messageHandler;
 		messageSplitter = new NfcMessageSplitter();
 		messageReassembler = new NfcMessageReassembler();
 		userIdReceived = 0;
@@ -161,7 +156,7 @@ public class CustomHostApduService {
 				userIdReceived = newUserId;
 				lastMessageSent = null;
 				lastMessageReceived = null;
-				eventHandler.handleMessage(NfcEvent.Type.INITIALIZED_HCE, Long.valueOf(userIdReceived));
+				eventHandler.handleMessage(NfcEvent.Type.INITIALIZED, Long.valueOf(userIdReceived));
 				resetStates();
 				return new NfcMessage(Type.USER_ID).startProtocol();
 			}
@@ -177,7 +172,7 @@ public class CustomHostApduService {
 			byte[] receivedData = messageReassembler.data();
 			messageReassembler.clear();
 			
-			eventHandler.handleMessage(NfcEvent.Type.MESSAGE_RECEIVED_HCE, receivedData);
+			eventHandler.handleMessage(NfcEvent.Type.MESSAGE_RECEIVED, receivedData);
 			byte[] response = messageHandler.handleMessage(receivedData);
 			
 			for(NfcMessage msg:messageSplitter.getFragments(response)) {
@@ -190,7 +185,7 @@ public class CustomHostApduService {
 				eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, null);
 			}
 			if(messageQueue.size() == 1) {
-				eventHandler.handleMessage(NfcEvent.Type.MESSAGE_SENT_HCE, null);
+				eventHandler.handleMessage(NfcEvent.Type.MESSAGE_SENT, null);
 			}
 			return messageQueue.poll();
 		case GET_NEXT_FRAGMENT:
@@ -199,7 +194,7 @@ public class CustomHostApduService {
 				eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, null);
 			}
 			if(messageQueue.size() == 1) {
-				eventHandler.handleMessage(NfcEvent.Type.MESSAGE_SENT_HCE, null);
+				eventHandler.handleMessage(NfcEvent.Type.MESSAGE_SENT, null);
 			}
 			return messageQueue.poll();
 		default:
@@ -219,6 +214,7 @@ public class CustomHostApduService {
 		sessionResumeThread.start();
 	}
 
+	//TODO: make clean
 	private class SessionResumeTask implements Runnable {
 
 		public void run() {
@@ -236,7 +232,7 @@ public class CustomHostApduService {
 						}
 					} else {
 						cont = false;
-						eventHandler.handleMessage(NfcEvent.Type.CONNECTION_LOST_HCE, null);
+						eventHandler.handleMessage(NfcEvent.Type.CONNECTION_LOST, null);
 					}
 				} else {
 					cont = false;

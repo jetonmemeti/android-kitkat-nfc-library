@@ -109,6 +109,7 @@ public class InternalNfcTransceiver implements ReaderCallback, NfcTransceiverImp
 
 	@Override
 	public int maxLen() {
+		//NXP chip supports max 255 bytes (10 bytes is header of nfc protocol)
 		// TODO: NXP has limit of 245, broadcom not, make distincion
 		return MAX_WRITE_LENGTH;
 	}

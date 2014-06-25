@@ -49,6 +49,7 @@ public class NfcTransceiver {
 	private final TagDiscoveredHandler tagDiscoveredHandler = new TagDiscoveredHandler();
 
 	private ExecutorService executorService = null;
+	private boolean initDone = false;
 
 	// state
 	private final Deque<NfcMessage> messageQueue = new LinkedList<NfcMessage>();
@@ -158,29 +159,35 @@ public class NfcTransceiver {
 				Log.d(TAG, "resume!");
 				if (retry++ > MAX_RETRY) {
 					Log.e(TAG, "retry failed: " + responseUserId);
-					eventHandler.handleMessage(NfcEvent.Type.INIT_RETRY_FAILED, null);
+					initFailed(NfcEvent.Type.INIT_FAILED);
 					return;
 				}
-				transceiveQueue(true);
+				transceiveLoop(true);
 			} else {
 				Log.d(TAG, "do not resume, fresh session");
 				if (responseUserId.type() != NfcMessage.Type.USER_ID) {
 					Log.e(TAG, "handshake user id unexpecetd: " + responseUserId);
-					eventHandler.handleMessage(NfcEvent.Type.INIT_FAILED, null);
+					initFailed(NfcEvent.Type.INIT_FAILED);
 					return;
 				}
 				reset();
 				Log.d(TAG, "handshake completed!");
+				initDone = true;
 				eventHandler.handleMessage(NfcEvent.Type.INITIALIZED, null);
 			}
 
 		} catch (Throwable t) {
 			Log.e(TAG, "init exception: ", t);
-			eventHandler.handleMessage(NfcEvent.Type.INIT_FAILED, null);
+			initFailed(NfcEvent.Type.INIT_FAILED);
 		}
 	}
-
 	
+	private void initFailed(NfcEvent.Type type) {
+		initDone = false;
+		eventHandler.handleMessage(type, null);
+	}
+
+	//TODO: try to rething future here
 	public Future<byte[]> transceive(byte[] bytes) throws IllegalArgumentException {
 		if (bytes == null || bytes.length == 0) {
 			throw new IllegalArgumentException(NULL_ARGUMENT);
@@ -188,6 +195,10 @@ public class NfcTransceiver {
 
 		if (isResume() && !messageQueue.isEmpty()) {
 			throw new IllegalArgumentException("previous message did not finish, cannot send now!");
+		}
+		
+		if(!initDone) {
+			throw new IllegalArgumentException("init not done");
 		}
 
 		byteCallable = new ByteCallable();
@@ -204,11 +215,11 @@ public class NfcTransceiver {
 		}
 		Log.d(TAG, "writing: " + bytes.length + " bytes, " + messageQueue.size() + " fragments");
 
-		transceiveQueue(false);
+		transceiveLoop(false);
 		return futureTask;
 	}
 
-	private void transceiveQueue(boolean resume) {
+	private void transceiveLoop(boolean resume) {
 		while (!messageQueue.isEmpty() && task.isActive()) {
 			try {
 				final NfcMessage request1 = messageQueue.peek();
@@ -264,21 +275,13 @@ public class NfcTransceiver {
 		}
 
 		if (!validateSequence(response)) {
-			// TODO thomas: if sq nr is not ok, you fire the fatal_error event
-			// in checkSequence, then you fire it here again. afterwards, you
-			// continue sending the next message from the queue. if you have
-			// another 3 messages, you will receive tons of other fatal_error
-			// events in your listener. insert a break
-			// condition in transceiveQueue or smthg.
-			// Again, fatal_error means we can't do anything to restore the
-			// session, so abort everything, and receive the event only once.
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, "sequence error");
 			return false;
 		}
 
 		// the last message has been sent to the HCE, now we receive the
 		// response
-		if (!request1.hasMoreFragments() && request1.payload().length > 0) {
+		if (!request1.hasMoreFragments() && request1.type() != Type.GET_NEXT_FRAGMENT) {
 			eventHandler.handleMessage(NfcEvent.Type.MESSAGE_SENT, request1);
 		}
 
@@ -289,20 +292,13 @@ public class NfcTransceiver {
 			NfcMessage toSend = new NfcMessage(Type.GET_NEXT_FRAGMENT);
 			messageQueue.offer(toSend);
 			return true;
-		} else {
-			// TODO thomas: if retVal.length==0, and no ERROR or so, then we
-			// should still fire the MESSAGE_RECEIVED event. this indicates that
-			// the protocol has finished correctly, but the counterpart did not
-			// send anything. (someone might design a protocol with an empty
-			// message)
-			boolean cont = messageQueue.size() > 0;
-			if (retVal.length > 0) {
-				eventHandler.handleMessage(NfcEvent.Type.MESSAGE_RECEIVED, retVal);
-				done(retVal);
-				return false;
-			}
+		} else if (response.type() != Type.GET_NEXT_FRAGMENT) {
+			eventHandler.handleMessage(NfcEvent.Type.MESSAGE_RECEIVED, retVal);
+			done(retVal);
 			messageReassembler.clear();
-			return cont;
+			return false;
+		} else {
+			return true;
 		}
 	}
 
@@ -318,15 +314,9 @@ public class NfcTransceiver {
 	private boolean validateSequence(NfcMessage response) {
 
 		boolean check = response.check(lastMessageReceived);
-		NfcMessage was = lastMessageReceived;
 		lastMessageReceived = response;
 		if (!check) {
-			check = response.check(was);
 			Log.e(TAG, "sequence number mismatch");
-			// TODO thomas: do not fire events from within the methods when you
-			// do so where they are called. we do not want to get two or more
-			// fatal_error events for the same problem
-			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, response.toString());
 			return false;
 		}
 		return true;
@@ -399,7 +389,8 @@ public class NfcTransceiver {
 					if (idle > NfcTransceiver.SESSION_RESUME_THRESHOLD) {
 						Log.e(TAG, "connection lost, idle: "+idle);
 						latch.countDown();
-						eventHandler.handleMessage(NfcEvent.Type.CONNECTION_LOST, null);
+						initFailed(NfcEvent.Type.CONNECTION_LOST);
+						
 						done(null);
 						return;
 					} else {

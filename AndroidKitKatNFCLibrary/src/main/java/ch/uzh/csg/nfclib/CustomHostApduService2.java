@@ -9,9 +9,9 @@ public class CustomHostApduService2 extends HostApduService {
 
 	public static final String TAG = "##NFC## CustomHostApduService2";
 
-	private static CustomHostApduService customHostApduService;
+	private static NfcResponder customHostApduService;
 
-	public static void init(CustomHostApduService customHostApduService2) {
+	public static void init(NfcResponder customHostApduService2) {
 		customHostApduService = customHostApduService2;
 	}
 
