@@ -9,6 +9,13 @@
 	<name>AndroidKitKatNFCLibrary</name>
 
 	<dependencies>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.11</version>
+			<scope>test</scope>
+		</dependency>
+		
 		<!-- Download the following zip http://www.acs.com.hk/download-driver/2989/ACS-Unified-LIB-Android-111-P.zip 
 			\ Install the acssmc-1.1.1.jar jar to your local maven repo: mvn install:install-file 
 			-Dfile=libs/acssmc-1.1.1.jar -DgroupId=com.acs.smartcard -DartifactId=acssmc 
@@ -17,13 +24,6 @@
 			<groupId>com.acs.smartcard</groupId>
 			<artifactId>acssmc</artifactId>
 			<version>1.1.1</version>
-		</dependency>
-
-		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<version>4.11</version>
-			<scope>test</scope>
 		</dependency>
 
 		<!-- Power Mock -->
