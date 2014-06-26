@@ -7,6 +7,7 @@ import java.util.LinkedList;
 import android.app.Activity;
 import android.nfc.cardemulation.HostApduService;
 import android.util.Log;
+import ch.uzh.csg.nfclib.CustomHostApduService2.SendLater;
 import ch.uzh.csg.nfclib.NfcMessage.Type;
 
 //TODO: javadoc
@@ -16,7 +17,7 @@ public class NfcResponder {
 
 	private static Activity hostActivity;
 	private static NfcEvent eventHandler;
-	private static IMessageHandler messageHandler;
+	private static TransceiveHandler messageHandler;
 
 	private static NfcMessageSplitter messageSplitter = new NfcMessageSplitter();
 	private static NfcMessageReassembler messageReassembler = new NfcMessageReassembler();
@@ -38,7 +39,7 @@ public class NfcResponder {
 
 	
 
-	public NfcResponder(Activity activity, NfcEvent eventHandler, IMessageHandler messageHandler) {
+	public NfcResponder(Activity activity, NfcEvent eventHandler, TransceiveHandler messageHandler) {
 		hostActivity = activity;
 		NfcResponder.eventHandler = eventHandler;
 		NfcResponder.messageHandler = messageHandler;
@@ -50,7 +51,7 @@ public class NfcResponder {
 		Log.d(TAG, "init hostapdu constructor");
 	}
 
-	public byte[] processCommandApdu(byte[] bytes, SendLater sendLater2) {
+	public byte[] processCommandApdu(byte[] bytes, SendLater sendLater) {
 		working = true;
 		Log.d(TAG, "processCommandApdu with " + Arrays.toString(bytes));
 
@@ -96,7 +97,7 @@ public class NfcResponder {
 				}
 			}		
 			//eventHandler fired in handleRequest
-			outputMessage = handleRequest(inputMessage, sendLater2);
+			outputMessage = handleRequest(inputMessage, sendLater);
 			if (outputMessage == null) {
 				//Log.e(TAG, "could not handle request");
 				//outputMessage = new NfcMessage(Type.EMPTY).error();
@@ -134,7 +135,7 @@ public class NfcResponder {
 		return new Pair<Boolean, Boolean>(check, repeat);
 	}
 
-	private NfcMessage handleRequest(NfcMessage incoming, SendLater sendLater2) {
+	private NfcMessage handleRequest(NfcMessage incoming, SendLater sendLater) {
 		Log.d(TAG, "received msg: " + incoming);
 
 		if (incoming.isError()) {
@@ -176,7 +177,7 @@ public class NfcResponder {
 			messageReassembler.clear();
 			
 			eventHandler.handleMessage(NfcEvent.Type.MESSAGE_RECEIVED, receivedData);
-			byte[] response = messageHandler.handleMessage(receivedData, sendLater2);
+			byte[] response = messageHandler.handleMessage(receivedData, sendLater);
 			
 			return fragmentData(response);
 		case GET_NEXT_FRAGMENT:
