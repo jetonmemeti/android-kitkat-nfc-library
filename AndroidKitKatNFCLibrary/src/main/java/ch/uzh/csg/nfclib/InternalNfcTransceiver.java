@@ -60,7 +60,8 @@ public class InternalNfcTransceiver implements ReaderCallback, NfcTransceiverImp
 		 * option.
 		 */
 		Bundle options = new Bundle();
-		options.putInt(NfcAdapter.EXTRA_READER_PRESENCE_CHECK_DELAY, 5000);
+		//this casuse a huge delay for a second reconnect! don't use this.
+		//options.putInt(NfcAdapter.EXTRA_READER_PRESENCE_CHECK_DELAY, 5000);
 
 		nfcAdapter.enableReaderMode(activity, this, NfcAdapter.FLAG_READER_NFC_A
 		        | NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK, options);

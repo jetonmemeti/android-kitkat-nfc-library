@@ -35,7 +35,7 @@ import ch.uzh.csg.nfclib.NfcMessage.Type;
 public class NfcTransceiver {
 
 	public static final int MAX_RETRY = 10;
-	public static final long SESSION_RESUME_THRESHOLD = 300;
+	public static final long SESSION_RESUME_THRESHOLD = 500;
 	public static final String NULL_ARGUMENT = "The message is null";
 	public static final String NFCTRANSCEIVER_NOT_CONNECTED = "Could not write message, NfcTransceiver is not connected.";
 	public static final String UNEXPECTED_ERROR = "An error occured while transceiving the message.";
@@ -227,8 +227,11 @@ public class NfcTransceiver {
 				} else {
 					resume = false;
 				}
+				long start = System.currentTimeMillis();
 				NfcMessage response = transceiver.write(request1);
-				Log.d(TAG, "trans write: "+request1);
+				Log.e(TAG, "time to write: "+(System.currentTimeMillis() - start));
+				Log.d(TAG, "trans request: "+request1);
+				Log.d(TAG, "trans response: "+response);
 				// //--> here we can get an exception
 				if (response == null) {
 					// we sent a request, the other side received it, handled
@@ -244,8 +247,8 @@ public class NfcTransceiver {
 					return;
 				}
 			} catch (NfcLibException e) {
-				eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, e);
 				done(null);
+				eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, e);
 				Log.e(TAG, "tranceive exception nfc", e);
 				return;
 			} catch (Throwable t) {
@@ -257,6 +260,9 @@ public class NfcTransceiver {
 				 */
 				Log.e(TAG, "tranceive exception", t);
 				t.printStackTrace();
+				
+				
+				
 				return;
 			}
 		}
@@ -285,10 +291,14 @@ public class NfcTransceiver {
 			NfcMessage toSend = new NfcMessage(Type.GET_NEXT_FRAGMENT);
 			messageQueue.offer(toSend);
 			return true;
+		} else if (response.type() == Type.POLLING) {
+			NfcMessage toSend = new NfcMessage(Type.POLLING).response();
+			messageQueue.offer(toSend);
+			return true;
 		} else if (response.type() != Type.GET_NEXT_FRAGMENT) {
-			eventHandler.handleMessage(NfcEvent.Type.MESSAGE_RECEIVED, retVal);
 			done(retVal);
-			messageReassembler.clear();
+			eventHandler.handleMessage(NfcEvent.Type.MESSAGE_RECEIVED, retVal);
+			byteCallable.set(retVal);
 			return false;
 		} else {
 			return true;
@@ -301,7 +311,6 @@ public class NfcTransceiver {
 		messageReassembler.clear();
 		messageQueue.clear();
 		retry = 0;
-		byteCallable.set(retVal);
 	}
 
 	private boolean validateSequence(NfcMessage response) {
@@ -382,9 +391,8 @@ public class NfcTransceiver {
 					if (idle > NfcTransceiver.SESSION_RESUME_THRESHOLD) {
 						Log.e(TAG, "connection lost, idle: "+idle);
 						latch.countDown();
-						initFailed(NfcEvent.Type.CONNECTION_LOST);
-						
 						done(null);
+						initFailed(NfcEvent.Type.CONNECTION_LOST);
 						return;
 					} else {
 						waitTime = NfcTransceiver.SESSION_RESUME_THRESHOLD - idle;

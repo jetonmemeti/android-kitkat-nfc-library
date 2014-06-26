@@ -21,13 +21,15 @@ public class NfcResponder {
 
 	private static NfcMessageSplitter messageSplitter = new NfcMessageSplitter();
 	private static NfcMessageReassembler messageReassembler = new NfcMessageReassembler();
+	
+	//TODO: handle tag lost
 	private static final Deque<NfcMessage> messageQueue = new LinkedList<NfcMessage>();
 
 
 	private static long userIdReceived = 0;
 
 	private static NfcMessage lastMessageSent;
-	private static NfcMessage lastMessageReceived;
+	static NfcMessage lastMessageReceived;
 
 
 	private static Thread sessionResumeThread = null;
@@ -83,10 +85,14 @@ public class NfcResponder {
 			//return prepareWrite(outputMessage);
 		} else {
 			Log.d(TAG, "regular message");
+			if(lastMessageReceived != null) {
+				Log.e(TAG, "last:"+ lastMessageReceived);
+			}
 			
 			if(inputMessage.type() != Type.USER_ID) {
 				Pair<Boolean, Boolean> seqCheck = checkSequence(inputMessage); 
 				if(!seqCheck.element0() && !seqCheck.element1()) {
+					
 					Log.e(TAG, "sequence number mismatch " + inputMessage.sequenceNumber() + " / " + (lastMessageReceived == null? 0 : lastMessageReceived.sequenceNumber()));
 					eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, inputMessage.toString());
 					outputMessage = new NfcMessage(Type.EMPTY).error();
@@ -135,7 +141,7 @@ public class NfcResponder {
 		return new Pair<Boolean, Boolean>(check, repeat);
 	}
 
-	private NfcMessage handleRequest(NfcMessage incoming, SendLater sendLater) {
+	private NfcMessage handleRequest(NfcMessage incoming, final SendLater sendLater) {
 		Log.d(TAG, "received msg: " + incoming);
 
 		if (incoming.isError()) {
@@ -173,19 +179,24 @@ public class NfcResponder {
 			}
 
 			messageReassembler.handleReassembly(incoming);
-			byte[] receivedData = messageReassembler.data();
+			final byte[] receivedData = messageReassembler.data();
 			messageReassembler.clear();
 			
 			eventHandler.handleMessage(NfcEvent.Type.MESSAGE_RECEIVED, receivedData);
-			byte[] response = messageHandler.handleMessage(receivedData, sendLater);
 			
-			return fragmentData(response);
+			messageHandler.handleMessage(receivedData, sendLater);
+			
+			return null;
+			//return fragmentData(response);
 		case GET_NEXT_FRAGMENT:
 			if (messageQueue.isEmpty()) {
 				Log.e(TAG, "nothing to return1");
 				eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, null);
 			}
 			return messageQueue.poll();
+			
+		case POLLING:
+			return new NfcMessage(Type.POLLING).request();
 		default:
 			return new NfcMessage(Type.DEFAULT);
 		}

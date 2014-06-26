@@ -41,7 +41,7 @@ public class NfcMessage {
 
 	// messages, uses 3 bits at most
 	public enum Type {
-		EMPTY, DEFAULT, AID_SELECTED, RETRANSMIT, GET_NEXT_FRAGMENT, WAIT_FOR_ANSWER, USER_ID, READ_BINARY;
+		EMPTY, DEFAULT, AID_SELECTED, GET_NEXT_FRAGMENT, USER_ID, READ_BINARY, POLLING, UNUSED;
 	}
 
 	// flags
@@ -281,7 +281,7 @@ public class NfcMessage {
 		if (isEmpty()) {
 			sb.append("empty");
 		} else {
-			sb.append("head: ").append(Integer.toHexString(header));
+			sb.append("type: ").append(type().toString());
 			sb.append("/").append(sequenceNumber);
 			sb.append(",len:").append(payload.length);
 			sb.append(",res:").append(isResume());

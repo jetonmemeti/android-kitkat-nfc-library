@@ -13,15 +13,15 @@ public class CustomHostApduService2 extends HostApduService {
 
 	private static NfcResponder nfcResponder;
 	
+	//private Object lock = new Object();
+	private byte[] data = null;
+	
 	public class SendLater {	
 		public void sendLater(byte[] data) {
 			if(data == null) {
 				throw new IllegalArgumentException("cannot be null");
 			}
-			Log.d(TAG, "about to send later "+Arrays.toString(data));
-			NfcMessage first = NfcResponder.fragmentData(data);
-			byte[] me = NfcResponder.prepareWrite(first);
-			CustomHostApduService2.this.sendResponseApdu(me);
+			CustomHostApduService2.this.data = data;
 		}
 	};
 	
@@ -33,13 +33,40 @@ public class CustomHostApduService2 extends HostApduService {
 
 	@Override
 	public byte[] processCommandApdu(byte[] bytes, Bundle extras) {
+		long start = System.currentTimeMillis();
 		if (nfcResponder == null) {
 			Log.w(TAG, "no CustomHostApduService set");
 			return null;
 		}
-		byte[] me = nfcResponder.processCommandApdu(bytes, sendLater);
-		Log.d(TAG, "about to return "+Arrays.toString(me));
-		return me;
+		
+		if(data != null) {
+			NfcMessage first = NfcResponder.fragmentData(data);
+			
+			//TODO: fix, this -> ugly
+			NfcResponder.lastMessageReceived = first;
+			
+			
+			data = NfcResponder.prepareWrite(first);
+//			Log.d(TAG, "return from polling: "+Arrays.toString(data));
+			byte[] tmp2 = data;
+			data = null;
+			return tmp2;
+		}
+		
+		byte[] tmp1 = nfcResponder.processCommandApdu(bytes, sendLater);
+		
+		
+		//if payment lib returns null, intial polling
+		if(tmp1 == null) {
+			NfcMessage polling = new NfcMessage(NfcMessage.Type.POLLING).request();
+			Log.d(TAG, "polling send");
+			byte[] tmp = NfcResponder.prepareWrite(polling);
+			return tmp;
+		}
+		
+		Log.d(TAG, "about to return "+Arrays.toString(data));
+		Log.e(TAG, "time to respond: "+(System.currentTimeMillis() - start));
+		return tmp1;
 	}
 
 	@Override
