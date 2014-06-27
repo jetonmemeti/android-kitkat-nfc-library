@@ -16,8 +16,10 @@ public class CustomHostApduService2 extends HostApduService {
 	//private Object lock = new Object();
 	private byte[] data = null;
 	
-	public class SendLater {	
-		public void sendLater(byte[] data) {
+	private final ISendLater sendLater = new ISendLater() {
+		
+		@Override
+		public void sendLater(byte[] bytes) {
 			if(data == null) {
 				throw new IllegalArgumentException("cannot be null");
 			}
@@ -25,8 +27,6 @@ public class CustomHostApduService2 extends HostApduService {
 		}
 	};
 	
-	private final SendLater sendLater = new SendLater();
-
 	public static void init(NfcResponder nfcResponder2) {
 		nfcResponder = nfcResponder2;
 	}

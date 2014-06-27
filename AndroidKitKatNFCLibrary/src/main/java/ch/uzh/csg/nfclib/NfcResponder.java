@@ -7,7 +7,6 @@ import java.util.LinkedList;
 import android.app.Activity;
 import android.nfc.cardemulation.HostApduService;
 import android.util.Log;
-import ch.uzh.csg.nfclib.CustomHostApduService2.SendLater;
 import ch.uzh.csg.nfclib.NfcMessage.Type;
 
 //TODO: javadoc
@@ -39,8 +38,6 @@ public class NfcResponder {
 	
 	//private SendLater sendLater;
 
-	
-
 	public NfcResponder(Activity activity, NfcEvent eventHandler, TransceiveHandler messageHandler) {
 		hostActivity = activity;
 		NfcResponder.eventHandler = eventHandler;
@@ -53,7 +50,7 @@ public class NfcResponder {
 		Log.d(TAG, "init hostapdu constructor");
 	}
 
-	public byte[] processCommandApdu(byte[] bytes, SendLater sendLater) {
+	public byte[] processCommandApdu(byte[] bytes, ISendLater sendLater) {
 		working = true;
 		Log.d(TAG, "processCommandApdu with " + Arrays.toString(bytes));
 
@@ -141,7 +138,7 @@ public class NfcResponder {
 		return new Pair<Boolean, Boolean>(check, repeat);
 	}
 
-	private NfcMessage handleRequest(NfcMessage incoming, final SendLater sendLater) {
+	private NfcMessage handleRequest(NfcMessage incoming, final ISendLater sendLater) {
 		Log.d(TAG, "received msg: " + incoming);
 
 		if (incoming.isError()) {

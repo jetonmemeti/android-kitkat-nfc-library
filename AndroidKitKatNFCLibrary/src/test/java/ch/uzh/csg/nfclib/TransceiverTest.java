@@ -25,7 +25,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import android.app.Activity;
 import android.util.Log;
-import ch.uzh.csg.nfclib.CustomHostApduService2.SendLater;
 import ch.uzh.csg.nfclib.NfcMessage.Type;
 import ch.uzh.csg.nfclib.NfcTransceiver.TagDiscoveredHandler;
 
@@ -184,7 +183,7 @@ public class TransceiverTest {
 		        new TransceiveHandler() {
 
 			        @Override
-			        public byte[] handleMessage(byte[] message, SendLater sendLater) {
+			        public byte[] handleMessage(byte[] message, ISendLater sendLater) {
 				        if (payload != null) {
 					        return payload;
 				        } else {
@@ -258,7 +257,7 @@ public class TransceiverTest {
 
 		NfcResponder c = mock(NfcResponder.class);
 		// return error after first message
-		when(c.processCommandApdu(any(byte[].class), any(SendLater.class))).thenReturn(new NfcMessage(Type.DEFAULT).error().bytes());
+		when(c.processCommandApdu(any(byte[].class), any(ISendLater.class))).thenReturn(new NfcMessage(Type.DEFAULT).error().bytes());
 		NfcTransceiver transceiver = createTransceiver(c);
 		transceiver.initNfc();
 
