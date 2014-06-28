@@ -1,9 +1,0 @@
-<resources>
-
-    <string name="app_name">AndroidKitKatNFCLibrary</string>
-    
-    <!-- APDU SERVICE -->
-    <string name="aiddescription">ch.uzh.csg.nfclib</string>
-    <string name="servicedesc">Android KitKat NFC Library</string>
-
-</resources>
