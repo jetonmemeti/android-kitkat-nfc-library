@@ -13,17 +13,16 @@ public class CustomHostApduService2 extends HostApduService {
 
 	private static NfcResponder nfcResponder;
 	
-	//private Object lock = new Object();
 	private byte[] data = null;
 	
 	private final ISendLater sendLater = new ISendLater() {
-		
 		@Override
 		public void sendLater(byte[] bytes) {
-			if(data == null) {
+			if(bytes == null) {
 				throw new IllegalArgumentException("cannot be null");
 			}
-			CustomHostApduService2.this.data = data;
+			Log.d(TAG, "send later " + Arrays.toString(bytes));
+			data = bytes;
 		}
 	};
 	
@@ -55,16 +54,24 @@ public class CustomHostApduService2 extends HostApduService {
 		
 		byte[] tmp1 = nfcResponder.processCommandApdu(bytes, sendLater);
 		
+		if(data != null) {
+			NfcMessage first = NfcResponder.fragmentData(data);
+			NfcResponder.lastMessageReceived = first;
+			data = NfcResponder.prepareWrite(first);
+			tmp1 = data;
+			data = null;
+		}
 		
 		//if payment lib returns null, intial polling
 		if(tmp1 == null) {
+			Log.d(TAG, "about to return null");
 			NfcMessage polling = new NfcMessage(NfcMessage.Type.POLLING).request();
 			Log.d(TAG, "polling send");
 			byte[] tmp = NfcResponder.prepareWrite(polling);
 			return tmp;
 		}
 		
-		Log.d(TAG, "about to return "+Arrays.toString(data));
+		Log.d(TAG, "about to return "+Arrays.toString(tmp1));
 		Log.e(TAG, "time to respond: "+(System.currentTimeMillis() - start));
 		return tmp1;
 	}

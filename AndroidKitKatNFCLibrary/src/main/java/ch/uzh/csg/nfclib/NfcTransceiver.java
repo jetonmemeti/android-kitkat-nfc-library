@@ -35,7 +35,8 @@ import ch.uzh.csg.nfclib.NfcMessage.Type;
 public class NfcTransceiver {
 
 	public static final int MAX_RETRY = 10;
-	public static final long SESSION_RESUME_THRESHOLD = 500;
+	public static final int CONNECTION_TIMEOUT = 500;
+	public static final int SESSION_RESUME_THRESHOLD = 500;
 	public static final String NULL_ARGUMENT = "The message is null";
 	public static final String NFCTRANSCEIVER_NOT_CONNECTED = "Could not write message, NfcTransceiver is not connected.";
 	public static final String UNEXPECTED_ERROR = "An error occured while transceiving the message.";
@@ -48,7 +49,7 @@ public class NfcTransceiver {
 
 	private final TagDiscoveredHandler tagDiscoveredHandler = new TagDiscoveredHandler();
 
-	private ExecutorService executorService = null;
+	
 	private boolean initDone = false;
 
 	// state
@@ -58,6 +59,7 @@ public class NfcTransceiver {
 	private NfcMessage lastMessageReceived;
 	private int retry = 0;
 	// if the task is null, it means either we did not start or we are done.
+	private ExecutorService executorService = null;
 	private TimeoutTask task;
 	private ByteCallable byteCallable;
 
@@ -176,6 +178,7 @@ public class NfcTransceiver {
 			}
 
 		} catch (Throwable t) {
+			t.printStackTrace();
 			Log.e(TAG, "init exception: ", t);
 			initFailed(NfcEvent.Type.INIT_FAILED);
 		}
@@ -184,6 +187,7 @@ public class NfcTransceiver {
 	private void initFailed(NfcEvent.Type type) {
 		initDone = false;
 		eventHandler.handleMessage(type, null);
+		byteCallable.set(null);
 	}
 
 	//TODO: try to rething future here
@@ -249,6 +253,7 @@ public class NfcTransceiver {
 			} catch (NfcLibException e) {
 				done(null);
 				eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, e);
+				byteCallable.set(null);
 				Log.e(TAG, "tranceive exception nfc", e);
 				return;
 			} catch (Throwable t) {
@@ -258,10 +263,8 @@ public class NfcTransceiver {
 				 * the session resume thread waits before returning the response
 				 * or an error message to the event handler.
 				 */
-				Log.e(TAG, "tranceive exception", t);
 				t.printStackTrace();
-				
-				
+				Log.e(TAG, "tranceive exception", t);
 				
 				return;
 			}
@@ -356,7 +359,6 @@ public class NfcTransceiver {
 	}
 
 	private class TimeoutTask implements Runnable {
-
 		private final CountDownLatch latch = new CountDownLatch(1);
 		private long lastAcitivity;
 
@@ -381,21 +383,21 @@ public class NfcTransceiver {
 		@Override
 		public void run() {
 			try {
-				long waitTime = NfcTransceiver.SESSION_RESUME_THRESHOLD;
+				long waitTime = CONNECTION_TIMEOUT;
 				while (!latch.await(waitTime, TimeUnit.MILLISECONDS)) {
 					final long now = System.currentTimeMillis();
 					final long idle;
 					synchronized (this) {
 						idle = now - lastAcitivity;
 					}
-					if (idle > NfcTransceiver.SESSION_RESUME_THRESHOLD) {
+					if (idle > CONNECTION_TIMEOUT) {
 						Log.e(TAG, "connection lost, idle: "+idle);
 						latch.countDown();
 						done(null);
 						initFailed(NfcEvent.Type.CONNECTION_LOST);
 						return;
 					} else {
-						waitTime = NfcTransceiver.SESSION_RESUME_THRESHOLD - idle;
+						waitTime = CONNECTION_TIMEOUT - idle;
 					}
 				}
 

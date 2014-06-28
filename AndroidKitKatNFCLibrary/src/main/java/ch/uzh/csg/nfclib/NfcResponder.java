@@ -3,6 +3,10 @@ package ch.uzh.csg.nfclib;
 import java.util.Arrays;
 import java.util.Deque;
 import java.util.LinkedList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import android.app.Activity;
 import android.nfc.cardemulation.HostApduService;
@@ -30,11 +34,10 @@ public class NfcResponder {
 	private static NfcMessage lastMessageSent;
 	static NfcMessage lastMessageReceived;
 
-
-	private static Thread sessionResumeThread = null;
-	private static volatile boolean working = false;
-
 	private long now;
+	
+	private ExecutorService executorService = null;
+	private TimeoutTask task;
 	
 	//private SendLater sendLater;
 
@@ -47,11 +50,13 @@ public class NfcResponder {
 		userIdReceived = 0;
 		lastMessageSent = null;
 		lastMessageReceived = null;
+		
+		executorService = Executors.newSingleThreadExecutor();
+		
 		Log.d(TAG, "init hostapdu constructor");
 	}
 
 	public byte[] processCommandApdu(byte[] bytes, ISendLater sendLater) {
-		working = true;
 		Log.d(TAG, "processCommandApdu with " + Arrays.toString(bytes));
 
 		NfcMessage outputMessage = null;
@@ -181,10 +186,14 @@ public class NfcResponder {
 			
 			eventHandler.handleMessage(NfcEvent.Type.MESSAGE_RECEIVED, receivedData);
 			
-			messageHandler.handleMessage(receivedData, sendLater);
+			byte[] response = messageHandler.handleMessage(receivedData, sendLater);
 			
-			return null;
-			//return fragmentData(response);
+			//the user can decide to use sendLater. In that case, we'll start to poll. This is triggered by returning null.
+			if(response == null) {
+				return null;
+			} else {
+				return fragmentData(response);
+			}
 		case GET_NEXT_FRAGMENT:
 			if (messageQueue.isEmpty()) {
 				Log.e(TAG, "nothing to return1");
@@ -195,7 +204,7 @@ public class NfcResponder {
 		case POLLING:
 			return new NfcMessage(Type.POLLING).request();
 		default:
-			return new NfcMessage(Type.DEFAULT);
+			return new NfcMessage(Type.DEFAULT).error();
 		}
 	}
 
@@ -217,42 +226,46 @@ public class NfcResponder {
 
 	public void onDeactivated(int reason) {
 		Log.d(TAG, "deactivated due to " + (reason == HostApduService.DEACTIVATION_LINK_LOSS ? "link loss" : "deselected") + "(" + reason + ")");
-
-		if (sessionResumeThread != null && !sessionResumeThread.isInterrupted())
-			sessionResumeThread.interrupt();
-
-		working = false;
-
-		sessionResumeThread = new Thread(new SessionResumeTask());
-		sessionResumeThread.start();
+		if(task!=null) {
+			task.shutdown();
+		}
+		
+		task = new TimeoutTask();
+		executorService.submit(task);
 	}
 
-	//TODO: make clean
-	private class SessionResumeTask implements Runnable {
+	private class TimeoutTask implements Runnable {
+		private final CountDownLatch latch = new CountDownLatch(1);
+		private final long lastAcitivity = System.currentTimeMillis();
 
-		public void run() {
-			long startTime = System.currentTimeMillis();
-			boolean cont = true;
-			long now;
-
-			while (cont && !Thread.currentThread().isInterrupted()) {
-				now = System.currentTimeMillis();
-				if (!working) {
-					if (now - startTime < NfcTransceiver.SESSION_RESUME_THRESHOLD) {
-						try {
-							Thread.sleep(50);
-						} catch (InterruptedException e) {
-						}
-					} else {
-						cont = false;
-						eventHandler.handleMessage(NfcEvent.Type.CONNECTION_LOST, null);
-					}
-				} else {
-					cont = false;
-				}
-			}
+		public void shutdown() {
+			latch.countDown();
 		}
 
+		@Override
+		public void run() {
+			try {
+				long waitTime = NfcTransceiver.SESSION_RESUME_THRESHOLD;
+				while (!latch.await(waitTime, TimeUnit.MILLISECONDS)) {
+					final long now = System.currentTimeMillis();
+					final long idle;
+					synchronized (this) {
+						idle = now - lastAcitivity;
+					}
+					if (idle > NfcTransceiver.SESSION_RESUME_THRESHOLD) {
+						Log.e(TAG, "connection lost, idle: "+idle);
+						latch.countDown();
+						eventHandler.handleMessage(NfcEvent.Type.CONNECTION_LOST, null);
+						return;
+					} else {
+						waitTime = NfcTransceiver.SESSION_RESUME_THRESHOLD - idle;
+					}
+				}
+
+			} catch (Throwable t) {
+				t.printStackTrace();
+			}
+		}
 	}
 
 }
