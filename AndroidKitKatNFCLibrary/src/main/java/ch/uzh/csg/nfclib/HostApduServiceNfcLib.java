@@ -7,24 +7,24 @@ import android.os.Bundle;
 import android.util.Log;
 
 //TODO: javadoc
-final public class HostApduServiceMBPS extends HostApduService {
+final public class HostApduServiceNfcLib extends HostApduService {
 
-	private static final String TAG = "ch.uzh.csg.nfclib.HostApduServiceMBPS";
+	private static final String TAG = "HostApduServiceMBPS";
 
-	private static NfcResponder nfcResponder;
+	private static NfcResponder fNfcResponder;
 	
-	public static void init(final NfcResponder nfcResponder2) {
-		nfcResponder = nfcResponder2;
+	public static void init(final NfcResponder nfcResponder) {
+		fNfcResponder = nfcResponder;
 	}
 
 	@Override
 	public byte[] processCommandApdu(final byte[] bytes, final Bundle extras) {
 		final long start = System.currentTimeMillis();
-		if (nfcResponder == null) {
+		if (fNfcResponder == null) {
 			Log.w(TAG, "no CustomHostApduService set");
 			return null;
 		}
-		final byte[] retVal = nfcResponder.processIncomingData(bytes);
+		final byte[] retVal = fNfcResponder.processIncomingData(bytes);
 		Log.d(TAG, "about to return "+Arrays.toString(retVal));
 		Log.e(TAG, "time to respond: "+(System.currentTimeMillis() - start));
 		return retVal;
@@ -32,10 +32,10 @@ final public class HostApduServiceMBPS extends HostApduService {
 
 	@Override
 	public void onDeactivated(final int reason) {
-		if (nfcResponder == null) {
+		if (fNfcResponder == null) {
 			Log.w(TAG, "no CustomHostApduService set");
 			return;
 		}
-		nfcResponder.onDeactivated(reason);
+		fNfcResponder.onDeactivated(reason);
 	}
 }
