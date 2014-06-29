@@ -7,7 +7,7 @@ import ch.uzh.csg.nfclib.NfcMessage.Type;
 
 /**
  * Is responsible for NfcMessage (or byte buffer) fragmentation in order to not
- * exceed the maximum allowed message length by the underlying NFC technology.
+ * exceed the maximum allowed message length by the underlying NFC technology. This class also handles reassembling
  * 
  * @author Jeton Memeti
  * @author Thomas Bocek
@@ -16,6 +16,7 @@ import ch.uzh.csg.nfclib.NfcMessage.Type;
 public class NfcMessageSplitter {
 
 	private int payloadLength = Integer.MAX_VALUE;
+	private byte[] data = null;
 
 	/**
 	 * Returns a new NfcMessageSplitter to handle the fragmentation of
@@ -28,13 +29,6 @@ public class NfcMessageSplitter {
 	public NfcMessageSplitter maxTransceiveLength(int maxTransceiveLength) {
 		payloadLength = maxTransceiveLength - NfcMessage.HEADER_LENGTH;
 		return this;
-	}
-	
-	//TODO thomas: method never called - needed?
-	public boolean hasFragments(byte[] payload) {
-		final int len = payload.length;
-		final int fragments = (len + payloadLength - 1) / payloadLength;
-		return fragments > 1;
 	}
 
 	/**
@@ -73,6 +67,40 @@ public class NfcMessageSplitter {
 		}
 
 		return list;
+	}
+	
+	
+
+	/**
+	 * Handles an incoming NFC message. If this is not the first NFC message,
+	 * the payload is appended to the temporal internal buffer.
+	 * 
+	 * @param nfcMessage
+	 *            the incoming NFC message
+	 */
+	public void reassemble(NfcMessage nfcMessage) {
+		if (data == null || data.length == 0) {
+			data = nfcMessage.payload();
+		} else {
+			byte[] temp = new byte[data.length + nfcMessage.payload().length];
+			System.arraycopy(data, 0, temp, 0, data.length);
+			System.arraycopy(nfcMessage.payload(), 0, temp, data.length, nfcMessage.payload().length);
+			data = temp;
+		}
+	}
+
+	/**
+	 * Clears the internal buffer.
+	 */
+	public void clear() {
+		this.data = null;
+	}
+
+	/**
+	 * Returns the buffer, which is the sum of the concatenated NFC messages.
+	 */
+	public byte[] data() {
+		return data;
 	}
 
 }

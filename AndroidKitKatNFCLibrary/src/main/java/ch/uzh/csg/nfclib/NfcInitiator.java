@@ -32,45 +32,40 @@ import ch.uzh.csg.nfclib.NfcMessage.Type;
  * @author Thomas Bocek
  * 
  */
-public class NfcTransceiver {
+public class NfcInitiator {
 
-	public static final int MAX_RETRY = 10;
 	public static final int CONNECTION_TIMEOUT = 500;
 	public static final int SESSION_RESUME_THRESHOLD = 500;
 	public static final String NULL_ARGUMENT = "The message is null";
 	public static final String NFCTRANSCEIVER_NOT_CONNECTED = "Could not write message, NfcTransceiver is not connected.";
 	public static final String UNEXPECTED_ERROR = "An error occured while transceiving the message.";
-	private static final String TAG = "##NFC## NfcTransceiver";
+	private static final String TAG = "ch.uzh.csg.nfclib.NfcInitiator";
 
-	private final NfcMessageSplitter messageSplitter = new NfcMessageSplitter();
-	private final NfcTransceiverImpl transceiver;
+	private final INfcTransceiver transceiver;
 	private final NfcEvent eventHandler;
 	private final long userId;
 
 	private final TagDiscoveredHandler tagDiscoveredHandler = new TagDiscoveredHandler();
 
-	
 	private boolean initDone = false;
 
 	// state
 	private final Deque<NfcMessage> messageQueue = new LinkedList<NfcMessage>();
-	private final NfcMessageReassembler messageReassembler = new NfcMessageReassembler();
+	private final NfcMessageSplitter messageSplitter = new NfcMessageSplitter();
 	private NfcMessage lastMessageSent;
-	private NfcMessage lastMessageReceived;
-	private int retry = 0;
 	// if the task is null, it means either we did not start or we are done.
 	private ExecutorService executorService = null;
 	private TimeoutTask task;
 	private ByteCallable byteCallable;
 
-	public NfcTransceiver(NfcEvent eventHandler, Activity activity, long userId, NfcTransceiverImpl transceiver) {
+	public NfcInitiator(NfcEvent eventHandler, Activity activity, long userId, INfcTransceiver transceiver) {
 		this.eventHandler = eventHandler;
 		this.userId = userId;
 		this.transceiver = transceiver;
 		messageSplitter.maxTransceiveLength(transceiver.maxLen());
 	}
 
-	public NfcTransceiver(NfcEvent eventHandler, Activity activity, long userId) {
+	public NfcInitiator(NfcEvent eventHandler, Activity activity, long userId) {
 		this.eventHandler = eventHandler;
 		this.userId = userId;
 		if (ExternalNfcTransceiver.isExternalReaderAttached(activity)) {
@@ -81,19 +76,11 @@ public class NfcTransceiver {
 		messageSplitter.maxTransceiveLength(transceiver.maxLen());
 	}
 
-	private void reset() {
-		messageReassembler.clear();
-		messageQueue.clear();
-		lastMessageSent = null;
-		lastMessageReceived = null;
-		retry = 0;
-	}
-
 	public TagDiscoveredHandler tagDiscoveredHandler() {
 		return tagDiscoveredHandler;
 	}
 
-	public NfcTransceiverImpl nfcTransceiver() {
+	public INfcTransceiver nfcTransceiver() {
 		return transceiver;
 	}
 
@@ -135,7 +122,7 @@ public class NfcTransceiver {
 	void initNfc() {
 		try {
 			Log.d(TAG, "init NFC");
-			
+
 			NfcMessage initMessage = new NfcMessage(Type.AID_SELECTED).request();
 			// no sequence number here, as this is a special message
 			NfcMessage response = transceiver.write(initMessage);
@@ -158,11 +145,6 @@ public class NfcTransceiver {
 
 			if (isResume()) {
 				Log.d(TAG, "resume!");
-				if (retry++ > MAX_RETRY) {
-					Log.e(TAG, "retry failed: " + responseUserId);
-					initFailed(NfcEvent.Type.INIT_FAILED);
-					return;
-				}
 				transceiveLoop(true);
 			} else {
 				Log.d(TAG, "do not resume, fresh session");
@@ -183,14 +165,20 @@ public class NfcTransceiver {
 			initFailed(NfcEvent.Type.INIT_FAILED);
 		}
 	}
-	
+
+	private void reset() {
+		messageSplitter.clear();
+		messageQueue.clear();
+		lastMessageSent = null;
+	}
+
 	private void initFailed(NfcEvent.Type type) {
 		initDone = false;
 		eventHandler.handleMessage(type, null);
 		byteCallable.set(null);
 	}
 
-	//TODO: try to rething future here
+	// TODO: try to rething future here
 	public Future<byte[]> transceive(byte[] bytes) throws IllegalArgumentException {
 		if (bytes == null || bytes.length == 0) {
 			throw new IllegalArgumentException(NULL_ARGUMENT);
@@ -199,8 +187,8 @@ public class NfcTransceiver {
 		if (isResume() && !messageQueue.isEmpty()) {
 			throw new IllegalArgumentException("previous message did not finish, cannot send now!");
 		}
-		
-		if(!initDone) {
+
+		if (!initDone) {
 			throw new IllegalArgumentException("init not done");
 		}
 
@@ -208,7 +196,8 @@ public class NfcTransceiver {
 		FutureTask<byte[]> futureTask = new FutureTask<byte[]>(byteCallable);
 		byteCallable.future(futureTask);
 
-		//hint the gc that now is a good time to cleanup. Its better to cleanup before we start the timeout task
+		// hint the gc that now is a good time to cleanup. Its better to cleanup
+		// before we start the timeout task
 		System.gc();
 		task = new TimeoutTask();
 		executorService.submit(task);
@@ -233,9 +222,9 @@ public class NfcTransceiver {
 				}
 				long start = System.currentTimeMillis();
 				NfcMessage response = transceiver.write(request1);
-				Log.e(TAG, "time to write: "+(System.currentTimeMillis() - start));
-				Log.d(TAG, "trans request: "+request1);
-				Log.d(TAG, "trans response: "+response);
+				Log.e(TAG, "time to write: " + (System.currentTimeMillis() - start));
+				Log.d(TAG, "trans request: " + request1);
+				Log.d(TAG, "trans response: " + response);
 				// //--> here we can get an exception
 				if (response == null) {
 					// we sent a request, the other side received it, handled
@@ -247,7 +236,7 @@ public class NfcTransceiver {
 				// inidcate acitivity to not run into a timeout
 				task.active();
 				boolean cont = handleTransceive(request1, response);
-				if(!cont) {
+				if (!cont) {
 					return;
 				}
 			} catch (NfcLibException e) {
@@ -265,13 +254,14 @@ public class NfcTransceiver {
 				 */
 				t.printStackTrace();
 				Log.e(TAG, "tranceive exception", t);
-				
+
 				return;
 			}
 		}
 	}
 
-	//important to return boolean, as we want to know if we want to proceed or quit the message queue.
+	// important to return boolean, as we want to know if we want to proceed or
+	// quit the message queue.
 	private boolean handleTransceive(NfcMessage request1, NfcMessage response) {
 
 		lastMessageSent = request1;
@@ -279,16 +269,16 @@ public class NfcTransceiver {
 		final NfcMessage request2 = messageQueue.poll();
 		// sanity check
 		if (!request1.equals(request2)) {
-			Log.e(TAG, "sync exception "+ request1+ " / "+request2);
+			Log.e(TAG, "sync exception " + request1 + " / " + request2);
 		}
 
-		if (!validateSequence(response)) {
+		if (!validateSequence(request1, response)) {
 			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, "sequence error");
 			return false;
 		}
 
-		messageReassembler.handleReassembly(response);
-		byte[] retVal = messageReassembler.data();
+		messageSplitter.reassemble(response);
+		byte[] retVal = messageSplitter.data();
 
 		if (response.hasMoreFragments()) {
 			NfcMessage toSend = new NfcMessage(Type.GET_NEXT_FRAGMENT);
@@ -311,17 +301,15 @@ public class NfcTransceiver {
 	private void done(byte[] retVal) {
 		// we are done
 		task.shutdown();
-		messageReassembler.clear();
+		messageSplitter.clear();
 		messageQueue.clear();
-		retry = 0;
 	}
 
-	private boolean validateSequence(NfcMessage response) {
-
-		boolean check = response.check(lastMessageReceived);
-		lastMessageReceived = response;
+	private boolean validateSequence(final NfcMessage request, final NfcMessage response) {
+		final boolean check = response.check(request);
 		if (!check) {
-			Log.e(TAG, "sequence number mismatch");
+			Log.e(TAG, "sequence number mismatch, expected " + ((request.sequenceNumber() + 1) % 255) + ", but was: "
+			        + response.sequenceNumber());
 			return false;
 		}
 		return true;
@@ -351,7 +339,7 @@ public class NfcTransceiver {
 			}
 		}
 	};
-	
+
 	public class TagDiscoveredHandler {
 		public void tagDiscovered() throws IOException {
 			initNfc();
@@ -368,7 +356,7 @@ public class NfcTransceiver {
 
 		public boolean isActive() {
 			return latch.getCount() > 0;
-        }
+		}
 
 		public void active() {
 			synchronized (this) {
@@ -391,7 +379,7 @@ public class NfcTransceiver {
 						idle = now - lastAcitivity;
 					}
 					if (idle > CONNECTION_TIMEOUT) {
-						Log.e(TAG, "connection lost, idle: "+idle);
+						Log.e(TAG, "connection lost, idle: " + idle);
 						latch.countDown();
 						done(null);
 						initFailed(NfcEvent.Type.CONNECTION_LOST);

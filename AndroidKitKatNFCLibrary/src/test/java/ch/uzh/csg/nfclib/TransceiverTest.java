@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -26,7 +27,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import android.app.Activity;
 import android.util.Log;
 import ch.uzh.csg.nfclib.NfcMessage.Type;
-import ch.uzh.csg.nfclib.NfcTransceiver.TagDiscoveredHandler;
+import ch.uzh.csg.nfclib.NfcInitiator.TagDiscoveredHandler;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(Log.class)
@@ -72,7 +73,7 @@ public class TransceiverTest {
 		}
 	};
 
-	private class MyNfcTransceiverImpl implements NfcTransceiverImpl {
+	private class MyNfcTransceiverImpl implements INfcTransceiver {
 
 		private boolean enabled = false;
 		private final NfcResponder customHostApduService;
@@ -113,18 +114,19 @@ public class TransceiverTest {
 				if (counterResponse > limitResponse) {
 					counterResponse = 0;
 					if (process) {
-						customHostApduService.processCommandApdu(input.bytes(), null);
+						customHostApduService.processIncomingData(input.bytes());
 					}
 					startThread();
 					return null;
 				} else {
-					byte[] repsonse = customHostApduService.processCommandApdu(input.bytes(), null);
+					byte[] repsonse = customHostApduService.processIncomingData(input.bytes());
+					//TODO: return polling
 					return new NfcMessage(repsonse);
 				}
 			} else {
-				byte[] repsonse = customHostApduService.processCommandApdu(input.bytes(), null);
+				byte[] repsonse = customHostApduService.processIncomingData(input.bytes());
 				if(repsonse == null) {
-					repsonse = customHostApduService.processCommandApdu(input.bytes(), null);
+					repsonse = customHostApduService.processIncomingData(input.bytes());
 					return null;
 				}
 				return new NfcMessage(repsonse);
@@ -173,18 +175,18 @@ public class TransceiverTest {
 		}
 	};
 
-	public NfcTransceiver createTransceiver() {
+	public NfcInitiator createTransceiver() {
 		return createTransceiver((byte[]) null, -1, -1, false, -1, false, -1);
 	}
 
-	public NfcTransceiver createTransceiver(final byte[] payload) {
+	public NfcInitiator createTransceiver(final byte[] payload) {
 		return createTransceiver(payload, -1, -1, false, -1, false, -1);
 	}
 
-	public NfcTransceiver createTransceiver(final byte[] payload, int limitRequest, int limitResponse, boolean process,
+	public NfcInitiator createTransceiver(final byte[] payload, int limitRequest, int limitResponse, boolean process,
 	        int timeout, final boolean sendLaterr, final int sendLaterTimeout) {
-		final NfcResponder customHostApduService = new NfcResponder(activity, eventHandler,
-		        new TransceiveHandler() {
+		final NfcResponder customHostApduService = new NfcResponder(eventHandler,
+		        new ITransceiveHandler() {
 
 			        @Override
 			        public byte[] handleMessage(byte[] message, final ISendLater sendLater) {
@@ -213,16 +215,16 @@ public class TransceiverTest {
 		return createTransceiver(customHostApduService, limitRequest, limitResponse, process, timeout);
 	}
 
-	public NfcTransceiver createTransceiver(NfcResponder customHostApduService) {
+	public NfcInitiator createTransceiver(NfcResponder customHostApduService) {
 		return createTransceiver(customHostApduService, -1, -1, false, -1);
 	}
 
-	public NfcTransceiver createTransceiver(NfcResponder customHostApduService, int limitRequest,
+	public NfcInitiator createTransceiver(NfcResponder customHostApduService, int limitRequest,
 	        int limitResponse, boolean process, int timeout) {
 
 		MyNfcTransceiverImpl myNfcTransceiverImpl = new MyNfcTransceiverImpl(customHostApduService, limitRequest,
 		        limitResponse, process, timeout);
-		NfcTransceiver nfc = new NfcTransceiver(eventHandler, activity, userId, myNfcTransceiverImpl);
+		NfcInitiator nfc = new NfcInitiator(eventHandler, activity, userId, myNfcTransceiverImpl);
 		myNfcTransceiverImpl.handler(nfc.tagDiscoveredHandler());
 		nfc.enable(null);
 		return nfc;
@@ -231,10 +233,7 @@ public class TransceiverTest {
 	final static Answer<Integer> answerd = new Answer<Integer>() {
 		@Override
 		public Integer answer(InvocationOnMock invocation) throws Throwable {
-			System.err.println("DBG:{"
-					
-					
-					+Thread.currentThread().getName()+"}" + Arrays.toString(invocation.getArguments()));
+			System.err.println("DBG:{"+Thread.currentThread().getName()+"}" + Arrays.toString(invocation.getArguments()));
 			return 0;
 		}
 	};
@@ -254,8 +253,15 @@ public class TransceiverTest {
 		PowerMockito.when(Log.w(Mockito.anyString(), Mockito.anyString())).then(answerd);
 		PowerMockito.when(Log.e(Mockito.anyString(), Mockito.anyString(), Mockito.any(Throwable.class))).then(answere);
 	}
+	
+	@After
+	public void after() {
+		//TODO: powermock keeps everthing in memory, with time testcase get super slow
+		Mockito.reset(activity);
+	}
 
 	private void reset() {
+		
 		states.clear();
 	}
 
@@ -263,7 +269,7 @@ public class TransceiverTest {
 	public void testInitNfc() throws IOException, InterruptedException {
 		reset();
 
-		NfcTransceiver transceiver = createTransceiver();
+		NfcInitiator transceiver = createTransceiver();
 		transceiver.initNfc();
 
 		assertEquals(2, states.size());
@@ -278,8 +284,8 @@ public class TransceiverTest {
 
 		NfcResponder c = mock(NfcResponder.class);
 		// return error after first message
-		when(c.processCommandApdu(any(byte[].class), any(ISendLater.class))).thenReturn(new NfcMessage(Type.DEFAULT).error().bytes());
-		NfcTransceiver transceiver = createTransceiver(c);
+		when(c.processIncomingData(any(byte[].class))).thenReturn(new NfcMessage(Type.DEFAULT).error().bytes());
+		NfcInitiator transceiver = createTransceiver(c);
 		transceiver.initNfc();
 
 		assertEquals(1, states.size());
@@ -291,7 +297,7 @@ public class TransceiverTest {
 	public void testTransceive_Reassembly() throws IOException, IllegalArgumentException, InterruptedException {
 		reset();
 
-		NfcTransceiver transceiver = createTransceiver();
+		NfcInitiator transceiver = createTransceiver();
 		transceiver.initNfc();
 
 		byte[] me = TestUtils.getRandomBytes(200);
@@ -311,7 +317,7 @@ public class TransceiverTest {
 	@Test
 	public void testTransceiveConsecutiveLoop() throws IOException, IllegalArgumentException,
 	        InterruptedException, ExecutionException {
-		for(int i=0;i<50;i++) {
+		for(int i=0;i<20;i++) {
 			System.err.println("i:"+i);
 			testTransceiveConsecutive();
 		}
@@ -321,7 +327,7 @@ public class TransceiverTest {
 	public void testTransceiveConsecutive() throws IOException, IllegalArgumentException, InterruptedException {
 		reset();
 
-		NfcTransceiver transceiver = createTransceiver();
+		NfcInitiator transceiver = createTransceiver();
 		transceiver.initNfc();
 
 		byte[] me = TestUtils.getRandomBytes(200);
@@ -355,7 +361,7 @@ public class TransceiverTest {
 	@Test
 	public void testTransceiveBigMessagesLoop() throws IOException, IllegalArgumentException,
 	        InterruptedException, ExecutionException {
-		for(int i=0;i<50;i++) {
+		for(int i=0;i<20;i++) {
 			System.err.println("i:"+i);
 			testTransceiveBigMessages();
 		}
@@ -366,7 +372,7 @@ public class TransceiverTest {
 		reset();
 
 		byte[] me1 = TestUtils.getRandomBytes(2000);
-		NfcTransceiver transceiver = createTransceiver(me1);
+		NfcInitiator transceiver = createTransceiver(me1);
 		transceiver.initNfc();
 
 		byte[] me2 = TestUtils.getRandomBytes(4000);
@@ -401,7 +407,7 @@ public class TransceiverTest {
 		reset();
 
 		byte[] me1 = TestUtils.getRandomBytes(2000);
-		NfcTransceiver transceiver = createTransceiver(me1);
+		NfcInitiator transceiver = createTransceiver(me1);
 		transceiver.initNfc();
 
 		byte[] me2 = TestUtils.getRandomBytes(4000);
@@ -433,7 +439,7 @@ public class TransceiverTest {
 		reset();
 
 		byte[] me1 = TestUtils.getRandomBytes(2000);
-		NfcTransceiver transceiver = createTransceiver(me1, 19, -1, false, -1, false, -1);
+		NfcInitiator transceiver = createTransceiver(me1, 19, -1, false, -1, false, -1);
 		transceiver.initNfc();
 
 		byte[] me2 = TestUtils.getRandomBytes(2);
@@ -454,7 +460,7 @@ public class TransceiverTest {
 		reset();
 
 		byte[] me1 = TestUtils.getRandomBytes(2000);
-		NfcTransceiver transceiver = createTransceiver(me1, 19, -1, false, -1, false, -1);
+		NfcInitiator transceiver = createTransceiver(me1, 19, -1, false, -1, false, -1);
 		transceiver.initNfc();
 
 		byte[] me2 = TestUtils.getRandomBytes(3000);
@@ -475,7 +481,7 @@ public class TransceiverTest {
 		reset();
 
 		byte[] me1 = TestUtils.getRandomBytes(2000);
-		NfcTransceiver transceiver = createTransceiver(me1, -1, 19, false, -1, false, -1);
+		NfcInitiator transceiver = createTransceiver(me1, -1, 19, false, -1, false, -1);
 		transceiver.initNfc();
 
 		byte[] me2 = TestUtils.getRandomBytes(3000);
@@ -495,7 +501,7 @@ public class TransceiverTest {
 		reset();
 
 		byte[] me1 = TestUtils.getRandomBytes(2000);
-		NfcTransceiver transceiver = createTransceiver(me1, -1, 19, true, -1, false, -1);
+		NfcInitiator transceiver = createTransceiver(me1, -1, 19, true, -1, false, -1);
 		transceiver.initNfc();
 
 		byte[] me2 = TestUtils.getRandomBytes(3000);
@@ -512,7 +518,7 @@ public class TransceiverTest {
 	@Test
 	public void testTransceiveResume3_ReceiverExceptionLoop() throws IOException, IllegalArgumentException,
 	        InterruptedException, ExecutionException {
-		for(int i=0;i<50;i++) {
+		for(int i=0;i<20;i++) {
 			System.err.println("i:"+i);
 			testTransceiveResume3_ReceiverException();
 		}
@@ -524,7 +530,7 @@ public class TransceiverTest {
 		reset();
 
 		byte[] me1 = TestUtils.getRandomBytes(2000);
-		NfcTransceiver transceiver = createTransceiver(me1, -1, 40, true, -1, false, -1);
+		NfcInitiator transceiver = createTransceiver(me1, -1, 40, true, -1, false, -1);
 		transceiver.initNfc();
 
 		byte[] me2 = TestUtils.getRandomBytes(3000);
@@ -567,7 +573,7 @@ public class TransceiverTest {
 		reset();
 
 		byte[] me1 = TestUtils.getRandomBytes(2000);
-		NfcTransceiver transceiver = createTransceiver(me1, 42, 45, true, -1, false, -1);
+		NfcInitiator transceiver = createTransceiver(me1, 42, 45, true, -1, false, -1);
 		transceiver.initNfc();
 
 		byte[] me2 = TestUtils.getRandomBytes(3000);
@@ -604,7 +610,7 @@ public class TransceiverTest {
 		reset();
 
 		byte[] me1 = TestUtils.getRandomBytes(2000);
-		NfcTransceiver transceiver = createTransceiver(me1, 24, 18, true, 400, false, -1);
+		NfcInitiator transceiver = createTransceiver(me1, 24, 18, true, 400, false, -1);
 		transceiver.initNfc();
 
 		byte[] me2 = TestUtils.getRandomBytes(3000);
@@ -625,7 +631,7 @@ public class TransceiverTest {
 		reset();
 
 		byte[] me1 = TestUtils.getRandomBytes(2000);
-		NfcTransceiver transceiver = createTransceiver(me1, 24, 18, true, 600, false, -1);
+		NfcInitiator transceiver = createTransceiver(me1, 24, 18, true, 600, false, -1);
 		transceiver.initNfc();
 
 		byte[] me2 = TestUtils.getRandomBytes(3000);
@@ -644,17 +650,8 @@ public class TransceiverTest {
 	public void testPolling1() throws IOException, IllegalArgumentException, InterruptedException, ExecutionException {
 		reset();
 		
-		//TODO: find out, why stub is thrown!
-		
-		//byte[] me1 = TestUtils.getRandomBytes(2000);
-		//NfcTransceiver transceiver = createTransceiver(me1, 24, 18, false, -1, false, -1);
-		//transceiver.initNfc();
-		
 		byte[] me1 = TestUtils.getRandomBytes(2000);
-		NfcTransceiver transceiver = createTransceiver(me1, 24, 18, false, -1, false, -1);
-		
-		//NfcTransceiver transceiver = createTransceiver(me1, -1, 19, true, -1, false, -1);
-
+		NfcInitiator transceiver = createTransceiver(me1, -1, 50, false, -1, true, 10);
 		transceiver.initNfc();
 
 		byte[] me2 = TestUtils.getRandomBytes(3000);
@@ -665,8 +662,10 @@ public class TransceiverTest {
 			System.err.println(state.event);
 		}
 
-		assertEquals(3, states.size());
-		//assertEquals(NfcEvent.Type.CONNECTION_LOST, states.get(2).event);
-		
+		assertEquals(4, states.size());
+		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(3).event);
+		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(2).event);
+		assertTrue(Arrays.equals(me2, states.get(2).response));
+		assertTrue(Arrays.equals(me1, states.get(3).response));
 	}
 }

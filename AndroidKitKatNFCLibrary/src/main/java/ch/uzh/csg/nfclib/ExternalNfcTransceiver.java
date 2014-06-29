@@ -12,16 +12,16 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.util.Log;
 import ch.uzh.csg.nfclib.NfcMessage.Type;
-import ch.uzh.csg.nfclib.NfcTransceiver.TagDiscoveredHandler;
+import ch.uzh.csg.nfclib.NfcInitiator.TagDiscoveredHandler;
 
 import com.acs.smartcard.Reader;
 import com.acs.smartcard.Reader.OnStateChangeListener;
 import com.acs.smartcard.ReaderException;
 
 //TODO: javadoc
-public class ExternalNfcTransceiver implements NfcTransceiverImpl {
+public class ExternalNfcTransceiver implements INfcTransceiver {
 
-	private static final String TAG = "##NFC## ExternalNfcTransceiver";
+	private static final String TAG = "ch.uzh.csg.nfclib.ExternalNfcTransceiver";
 
 	/*
 	 * 64 is the maximum due to a sequence bug in the ACR122u

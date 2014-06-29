@@ -1,7 +1,7 @@
 package ch.uzh.csg.nfclib;
 
 //TODO: javadoc
-public interface TransceiveHandler {
+public interface ITransceiveHandler {
 	
 	public byte[] handleMessage(byte[] message, ISendLater sendLater);
 	

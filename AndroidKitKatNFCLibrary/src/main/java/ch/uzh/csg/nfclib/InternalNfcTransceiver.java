@@ -11,11 +11,11 @@ import android.nfc.tech.IsoDep;
 import android.os.Bundle;
 import android.util.Log;
 import ch.uzh.csg.nfclib.NfcMessage.Type;
-import ch.uzh.csg.nfclib.NfcTransceiver.TagDiscoveredHandler;
+import ch.uzh.csg.nfclib.NfcInitiator.TagDiscoveredHandler;
 
 //TODO: javadoc
-public class InternalNfcTransceiver implements ReaderCallback, NfcTransceiverImpl {
-	private static final String TAG = "##NFC## InternalNfcTransceiver";
+public class InternalNfcTransceiver implements ReaderCallback, INfcTransceiver {
+	private static final String TAG = "ch.uzh.csg.nfclib.InternalNfcTransceiver";
 
 	/*
 	 * NXP chip supports max 255 bytes (10 bytes is header of nfc protocol)

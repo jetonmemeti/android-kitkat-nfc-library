@@ -117,10 +117,13 @@ public class NfcMessage {
 	}
 
 	public boolean check(NfcMessage previousMessage) {
+		final int check;
 		if (previousMessage == null) {
-			return sequenceNumber == 0;
+			check = -1;
+		} else {
+			check = previousMessage.sequenceNumber;
 		}
-		return sequenceNumber == (previousMessage.sequenceNumber + 1) % 255;
+		return sequenceNumber == (check + 1) % 255;
 	}
 	
 	public boolean repeatLast(NfcMessage previousMessage) {
