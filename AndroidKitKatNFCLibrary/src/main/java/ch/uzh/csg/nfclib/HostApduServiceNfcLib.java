@@ -7,6 +7,8 @@ import android.os.Bundle;
 import android.util.Log;
 
 //TODO: javadoc
+
+// do not rename this class!! it is referenced in other projects in xml files and will crash other projects if you do so!
 final public class HostApduServiceNfcLib extends HostApduService {
 
 	private static final String TAG = "HostApduServiceMBPS";
