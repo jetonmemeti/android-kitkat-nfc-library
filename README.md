@@ -28,7 +28,7 @@ Installation Guidelines:
     Install two third-party libraries to your local maven repository (read <a href="http://maven.apache.org/guides/mini/guide-3rd-party-jars-local.html">here</a> how to install 3rd party JARs).
     <ul>
       <li>You need the <a href="https://github.com/mosabua/maven-android-sdk-deployer">maven-android-sdk-deployer</a>. Follow the instructions there - only platform 4.4 needs to be installed. (This library requires the <a href="http://search.maven.org/#artifactdetails%7Corg.codehaus.mojo%7Cproperties-maven-plugin%7C1.0-alpha-2%7Cmaven-plugin">properties-maven-plugin</a> to be installed to your local maven repository. Otherwise, the installation of maven-android-sdk-deployer will fail.)</li>
-      <li>You also need the Android Library for the ACR122u, even if you do not plan to use it in your application. You can download the JAR on the <a href="http://www.acs.com.hk/download-driver/2989/ACS-Unified-LIB-Android-111-P.zip">ACS website</a> or from this git repository <a href="https://github.com/jetonmemeti/android-kitkat-nfc-library/blob/develop-tb/acssmc-1.1.1.jar">here</a>.</li>
+      <li>You also need the Android Library for the ACR122u, even if you do not plan to use it in your application. You can download the JAR on the <a href="http://www.acs.com.hk/download-driver/2989/ACS-Unified-LIB-Android-111-P.zip">ACS website</a> or from this git repository <a href="https://github.com/jetonmemeti/android-kitkat-nfc-library/blob/master/acssmc-1.1.1.jar">here</a>.</li>
     </ul>
   </li>
   <li>Clone this git repository.</li>
@@ -42,7 +42,7 @@ You can have a look at or check out the <a href="https://github.com/jetonmemeti/
 
 If you want to import this library into your own Android project - without using the <a href="https://github.com/jetonmemeti/android-nfc-payment-library">AndroidNFCPaymentLibrary</a> - there are three important things that you need to add to your project in order for the NFC to work properly. (See for example the <a href="https://github.com/jetonmemeti/SamplePaymentProject">SamplePaymentProject</a>.)
 <ul>
-  <li>Copy the file <a href="https://github.com/jetonmemeti/android-kitkat-nfc-library/blob/master/acssmc-1.1.1.jar">apduservice.xml</a> to <code>&lt;project root folder&gt;\res\xml\</code>.</li>
+  <li>Copy the file <a href="https://github.com/jetonmemeti/android-kitkat-nfc-library/blob/master/apduservice.xml">apduservice.xml</a> to <code>&lt;project root folder&gt;\res\xml\</code>.</li>
   <li>In <code>&lt;project root folder&gt;\res\values\strings.xml</code> add the following:<br>
     <pre><code>&lt;!-- APDU SERVICE --&gt;</code><br>
     <code>&lt;string name="aiddescription"&gt;ch.uzh.csg.nfclib&lt;/string&gt;</code><br>
@@ -53,7 +53,7 @@ If you want to import this library into your own Android project - without using
     <code>&lt;uses-feature android:name="android.hardware.nfc" android:required="true" /&gt;</code><br>  
     <code>&lt;uses-permission android:name="android.permission.NFC" /&gt;</code></pre>
     Inside the <code>&lt;application&gt;</code> tag add:<br>
-    <pre><code>&lt;service android:name="ch.uzh.csg.nfclib.CustomHostApduService" android:exported="true" android:permission="android.permission.BIND_NFC_SERVICE"&gt;<br>
+    <pre><code>&lt;service android:name="ch.uzh.csg.nfclib.HostApduServiceNfcLib" android:exported="true" android:permission="android.permission.BIND_NFC_SERVICE"&gt;<br>
   &lt;intent-filter&gt;<br>
     &lt;action android:name="android.nfc.cardemulation.action.HOST_APDU_SERVICE" /&gt;<br>
   &lt;/intent-filter&gt;<br>
