@@ -6,23 +6,26 @@ import java.util.Arrays;
 import ch.uzh.csg.nfclib.NfcMessage.Type;
 
 /**
- * Is responsible for NfcMessage (or byte buffer) fragmentation in order to not
- * exceed the maximum allowed message length by the underlying NFC technology. This class also handles reassembling
+ * This is responsible for byte array fragmentation into {@link NfcMessage}s in
+ * order to not exceed the maximum allowed message length by the underlying NFC
+ * technology.
+ * 
+ * This class also handles the reassembly of incoming {@link NfcMessage}s.
  * 
  * @author Jeton Memeti
  * @author Thomas Bocek
  * 
  */
 public class NfcMessageSplitter {
-
+	
 	private int payloadLength = Integer.MAX_VALUE;
 	private byte[] data = null;
-
+	
 	/**
-	 * Returns a new NfcMessageSplitter to handle the fragmentation of
-	 * NfcMessages.
+	 * Returns a new NfcMessageSplitter to handle the fragmentation and
+	 * reassembly of NfcMessages.
 	 * 
-	 * @param isoDepMaxTransceiveLength
+	 * @param maxTransceiveLength
 	 *            the maximum number of bytes which can be send at once by the
 	 *            underlying NFC technology
 	 */
@@ -30,12 +33,12 @@ public class NfcMessageSplitter {
 		payloadLength = maxTransceiveLength - NfcMessage.HEADER_LENGTH;
 		return this;
 	}
-
+	
 	/**
 	 * Fragments the payload into a number of NfcMessages so that no NfcMessage
-	 * exceeds the isoDepMaxTransceiveLength. If no fragmentation is needed
-	 * (because the payload does not reach the threshold), then a list
-	 * containing only one NfcMessage is returned.
+	 * exceeds the maxTransceiveLength. If no fragmentation is needed (because
+	 * the payload does not reach the threshold), then a list containing only
+	 * one NfcMessage is returned.
 	 * 
 	 * The sequence number of the NfcMessages is not set here (all messages in
 	 * the list have the sequence number 0)! It must be set appropriately
@@ -47,8 +50,10 @@ public class NfcMessageSplitter {
 	 */
 	public ArrayList<NfcMessage> getFragments(byte[] payload) {
 		final int len = payload.length;
-		// Returns the number of fragments the whole message needs to be split
-		// into (taking into account protocol headers etc.).
+		/*
+		 * Returns the number of fragments the whole message needs to be split
+		 * into (taking into account protocol headers etc.).
+		 */
 		final int fragments = (len + payloadLength - 1) / payloadLength;
 		ArrayList<NfcMessage> list = new ArrayList<NfcMessage>(fragments);
 
@@ -69,8 +74,6 @@ public class NfcMessageSplitter {
 		return list;
 	}
 	
-	
-
 	/**
 	 * Handles an incoming NFC message. If this is not the first NFC message,
 	 * the payload is appended to the temporal internal buffer.
@@ -88,19 +91,19 @@ public class NfcMessageSplitter {
 			data = temp;
 		}
 	}
-
+	
 	/**
 	 * Clears the internal buffer.
 	 */
 	public void clear() {
 		this.data = null;
 	}
-
+	
 	/**
 	 * Returns the buffer, which is the sum of the concatenated NFC messages.
 	 */
 	public byte[] data() {
 		return data;
 	}
-
+	
 }

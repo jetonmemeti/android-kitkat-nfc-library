@@ -6,15 +6,27 @@ import android.nfc.cardemulation.HostApduService;
 import android.os.Bundle;
 import android.util.Log;
 
-//TODO: javadoc
+/**
+ * This class handles incoming messages over NFC, which are passed to this
+ * directly by the Android OS. It is to be registered in the Manifest.xml of
+ * your application.
+ * 
+ * @author Jeton
+ * 
+ */
+public final class HostApduServiceNfcLib extends HostApduService {
+	/*
+	 * DO NOT RENAME THIS CLASS!! It is referenced in other projects in xml
+	 * files and will crash other projects if you do so!
+	 */
 
-// do not rename this class!! it is referenced in other projects in xml files and will crash other projects if you do so!
-final public class HostApduServiceNfcLib extends HostApduService {
-
-	private static final String TAG = "HostApduServiceMBPS";
+	private static final String TAG = "ch.uzh.csg.nfclib.HostApduServiceNfcLib";
 
 	private static NfcResponder fNfcResponder;
 	
+	/**
+	 * Sets the {@link NfcResponder} to handle incoming messages.
+	 */
 	public static void init(final NfcResponder nfcResponder) {
 		fNfcResponder = nfcResponder;
 	}
@@ -40,4 +52,5 @@ final public class HostApduServiceNfcLib extends HostApduService {
 		}
 		fNfcResponder.onDeactivated(reason);
 	}
+	
 }
