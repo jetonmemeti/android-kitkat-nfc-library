@@ -93,7 +93,7 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 	}
 
 	@Override
-	public NfcMessage write(NfcMessage input) throws NfcLibException, IOException {
+	public NfcMessage write(NfcMessage input) throws IOException {
 
 		if (!isEnabled()) {
 			Log.d(TAG, "could not write message, reader is not enabled");

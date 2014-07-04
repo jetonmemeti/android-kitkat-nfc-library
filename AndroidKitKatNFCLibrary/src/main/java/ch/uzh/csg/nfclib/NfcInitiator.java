@@ -15,6 +15,8 @@ import android.app.Activity;
 import android.util.Log;
 import ch.uzh.csg.nfclib.NfcMessage.Type;
 
+//TODO: javadoc
+
 /**
  * packet flow:
  * 
@@ -102,11 +104,7 @@ public class NfcInitiator {
 				Log.e(TAG, "shutdown failed: ", e);
 			}
 		}
-		try {
-			transceiver.disable(activity);
-		} catch (IOException e) {
-			Log.e(TAG, "disable failed: ", e);
-		}
+		transceiver.disable(activity);
 	}
 
 	private boolean isResume() {
@@ -239,21 +237,22 @@ public class NfcInitiator {
 				if (!cont) {
 					return;
 				}
-			} catch (NfcLibException e) {
-				done(null);
-				eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, e);
-				byteCallable.set(null);
-				Log.e(TAG, "tranceive exception nfc", e);
-				return;
-			} catch (Throwable t) {
+				//TODO: this catch block is obsolete, since never thrown!
+//			} catch (NfcLibException e) {
+//				done(null);
+//				eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, e);
+//				byteCallable.set(null);
+//				Log.e(TAG, "tranceive exception nfc", e);
+//				return;
+			} catch (IOException e) {
 				/*
 				 * This might occur due to a connection lost and can be followed
 				 * by a nfc handshake to re-init the nfc connection. Therefore
 				 * the session resume thread waits before returning the response
 				 * or an error message to the event handler.
 				 */
-				t.printStackTrace();
-				Log.e(TAG, "tranceive exception", t);
+				e.printStackTrace();
+				Log.e(TAG, "tranceive exception", e);
 
 				return;
 			}

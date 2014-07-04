@@ -98,7 +98,7 @@ public class TransceiverTest {
 		}
 		
 		@Override
-		public NfcMessage write(NfcMessage input) throws NfcLibException, IOException {
+		public NfcMessage write(NfcMessage input) throws IOException {
 			if (limitRequest > 0) {
 				counterRequest++;
 				if (counterRequest > limitRequest) {
@@ -164,7 +164,7 @@ public class TransceiverTest {
 		}
 
 		@Override
-		public void disable(Activity activity) throws IOException {
+		public void disable(Activity activity) {
 			enabled = false;
 		}
 	};
