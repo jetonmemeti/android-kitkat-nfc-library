@@ -1,8 +1,20 @@
 package ch.uzh.csg.nfclib;
 
-//TODO: javadoc
+/**
+ * The implementation of this interface must send the provided message over NFC
+ * as soon as it arrives. In the meanwhile, polling is needed.
+ * 
+ * @author Jeton
+ * 
+ */
 public interface ISendLater {
 	
+	/**
+	 * Send the byte array over NFC to the counterpart.
+	 * 
+	 * @param bytes
+	 *            the serialized message to return
+	 */
 	public void sendLater(byte[] bytes);
 
 }
