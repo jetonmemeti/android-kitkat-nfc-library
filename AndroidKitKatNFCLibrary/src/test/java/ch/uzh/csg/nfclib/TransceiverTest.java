@@ -44,6 +44,7 @@ public class TransceiverTest {
 	private static class State {
 		NfcEvent event;
 		private byte[] response = null;
+		@SuppressWarnings("unused")
 		private String nfcErrorMessage = null;
 	}
 
