@@ -5,7 +5,8 @@ package ch.uzh.csg.nfclib;
  * return the appropriate response immediately or return null and pass the
  * response to the {@link ISendLater} instance.
  * 
- * @author Jeton
+ * @author Jeton Memeti
+ * @author Thomas Bocek
  * 
  */
 public interface ITransceiveHandler {

@@ -10,7 +10,8 @@ import android.app.Activity;
  * The implementation of this interface must handle the initialization and the
  * near field communication.
  * 
- * @author Jeton
+ * @author Jeton Memeti
+ * @author Thomas Bocek
  * 
  */
 public interface INfcTransceiver {

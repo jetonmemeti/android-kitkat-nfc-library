@@ -21,7 +21,8 @@ import ch.uzh.csg.nfclib.messages.NfcMessage.Type;
  * This class handles the initialization and the message exchange over NFC for
  * the internal or build-in NFC controller of the Android smartphone or tablet.
  * 
- * @author Jeton
+ * @author Jeton Memeti
+ * @author Thomas Bocek
  * 
  */
 public class InternalNfcTransceiver implements ReaderCallback, INfcTransceiver {

@@ -12,7 +12,8 @@ import android.util.Log;
  * directly by the Android OS. It is to be registered in the Manifest.xml of
  * your application.
  * 
- * @author Jeton
+ * @author Jeton Memeti
+ * @author Thomas Bocek
  * 
  */
 public final class HostApduServiceNfcLib extends HostApduService {

@@ -24,7 +24,8 @@ import ch.uzh.csg.nfclib.utils.Utils;
  * 
  * Message fragmentation and reassembly is handled internally.
  * 
- * @author Jeton
+ * @author Jeton Memeti
+ * @author Thomas Bocek
  * 
  */
 public class NfcResponder {

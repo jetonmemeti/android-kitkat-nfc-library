@@ -4,7 +4,8 @@ package ch.uzh.csg.nfclib;
  * The implementation of this interface must send the provided message over NFC
  * as soon as it arrives. In the meanwhile, polling is needed.
  * 
- * @author Jeton
+ * @author Jeton Memeti
+ * @author Thomas Bocek
  * 
  */
 public interface ISendLater {

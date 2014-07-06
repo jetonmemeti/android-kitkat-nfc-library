@@ -11,7 +11,8 @@ package ch.uzh.csg.nfclib.events;
  * MESSAGE_RECEIVED --> the received serialized message
  * CONNECTION_LOST --> no data
  * 
- * @author Jeton
+ * @author Jeton Memeti
+ * @author Thomas Bocek
  * 
  */
 public enum NfcEvent {

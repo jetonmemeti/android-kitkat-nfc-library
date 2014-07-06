@@ -5,7 +5,8 @@ package ch.uzh.csg.nfclib.events;
  * The implementation of this interface must implement what has to be done on
  * the given {@link NfcEvent}.
  * 
- * @author Jeton
+ * @author Jeton Memeti
+ * @author Thomas Bocek
  * 
  */
 public interface INfcEventHandler {

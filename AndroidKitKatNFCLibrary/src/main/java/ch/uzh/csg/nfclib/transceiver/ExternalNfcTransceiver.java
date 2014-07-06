@@ -26,7 +26,8 @@ import com.acs.smartcard.ReaderException;
  * This class handles the ACR122u USB NFC reader initialization and the message
  * exchange over NFC.
  * 
- * @author Jeton
+ * @author Jeton Memeti
+ * @author Thomas Bocek
  * 
  */
 public class ExternalNfcTransceiver implements INfcTransceiver {
