@@ -18,7 +18,13 @@ import com.acs.smartcard.Reader;
 import com.acs.smartcard.Reader.OnStateChangeListener;
 import com.acs.smartcard.ReaderException;
 
-//TODO: javadoc
+/**
+ * This class handles the ACR122u USB NFC reader initialization and the message
+ * exchange over NFC.
+ * 
+ * @author Jeton
+ * 
+ */
 public class ExternalNfcTransceiver implements INfcTransceiver {
 
 	private static final String TAG = "ch.uzh.csg.nfclib.ExternalNfcTransceiver";
@@ -30,6 +36,8 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 	 * -sequence-numbers-td5002.html If larger than 64, then I get a
 	 * com.acs.smartcard.CommunicationErrorException: The sequence number (4) is
 	 * invalid.
+	 * 
+	 * The same problem arises sometimes even with the length of 54.
 	 */
 	protected static final int MAX_WRITE_LENGTH = 53;
 
@@ -37,13 +45,22 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 
 	private BroadcastReceiver broadcastReceiver;
 
-	private final NfcEvent eventHandler;
+	private final INfcEventHandler eventHandler;
 	private final TagDiscoveredHandler nfcInit;
 
 	private Reader reader;
 	private int maxLen;
 
-	public ExternalNfcTransceiver(NfcEvent eventHandler, TagDiscoveredHandler nfcInit) {
+	/**
+	 * Creates a new instance.
+	 * 
+	 * @param eventHandler
+	 *            the {@link INfcEventHandler} (may not be null)
+	 * @param nfcInit
+	 *            the {@link TagDiscoveredHandler} which is notified as soon as
+	 *            a NFC connection is established (may not be null)
+	 */
+	public ExternalNfcTransceiver(INfcEventHandler eventHandler, TagDiscoveredHandler nfcInit) {
 		this.eventHandler = eventHandler;
 		this.nfcInit = nfcInit;
 	}
@@ -79,6 +96,7 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 		}
 	}
 
+	@Override
 	public boolean isEnabled() {
 		if (reader == null) {
 			return false;
@@ -94,16 +112,15 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 
 	@Override
 	public NfcMessage write(NfcMessage input) throws IOException {
-
 		if (!isEnabled()) {
 			Log.d(TAG, "could not write message, reader is not enabled");
-			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
+			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
 			return new NfcMessage(Type.EMPTY).sequenceNumber(input).error();
 		}
 
 		if (reader.isOpened()) {
 			Log.d(TAG, "could not write message, reader is no longer connected");
-			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
+			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
 			return new NfcMessage(Type.EMPTY).sequenceNumber(input).error();
 		}
 
@@ -118,13 +135,15 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 			length = reader.transmit(0, bytes, bytes.length, recvBuffer, recvBuffer.length);
 		} catch (ReaderException e) {
 			Log.d(TAG, "could not write message, ReaderException", e);
-			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, "ReaderException");
+			//TODO: change err msg
+			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, "ReaderException");
 			return new NfcMessage(Type.EMPTY).sequenceNumber(input).error();
 		}
 
 		if (length <= 0) {
 			Log.d(TAG, "could not write message, return value is 0");
-			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, "return value is 0");
+			//TODO: change err msg
+			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, "return value is 0");
 			return new NfcMessage(Type.EMPTY).sequenceNumber(input).error();
 		}
 
@@ -143,10 +162,10 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 						nfcInit.tagDiscovered();
 					} catch (ReaderException e) {
 						Log.e(TAG, "Could not connnect reader1: ", e);
-						eventHandler.handleMessage(NfcEvent.Type.INIT_FAILED, null);
+						eventHandler.handleMessage(NfcEvent.INIT_FAILED, null);
 					} catch (IOException e) {
 						Log.e(TAG, "Could not connnect reader2: ", e);
-						eventHandler.handleMessage(NfcEvent.Type.INIT_FAILED, null);
+						eventHandler.handleMessage(NfcEvent.INIT_FAILED, null);
 					}
 				}
 			}
@@ -170,11 +189,19 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 		return null;
 	}
 
+	/**
+	 * Checks if the ACR122u USB NFC reader is attached via USB.
+	 * 
+	 * @param activity
+	 *            the current activity, needed to retrieve all attached USB
+	 *            devices
+	 * @return true if the ACR122u USB NFC reader is attached, false otherwise
+	 */
 	public static boolean isExternalReaderAttached(Activity activity) {
 		return externalReaderAttached(activity) != null;
 	}
 
-	private static BroadcastReceiver createBroadcastReceiver(final Reader reader, final NfcEvent eventHandler) {
+	private static BroadcastReceiver createBroadcastReceiver(final Reader reader, final INfcEventHandler eventHandler) {
 		return new BroadcastReceiver() {
 
 			@Override
@@ -188,7 +215,7 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 							try {
 								reader.open(device);
 							} catch (Exception e) {
-								eventHandler.handleMessage(NfcEvent.Type.INIT_FAILED, null);
+								eventHandler.handleMessage(NfcEvent.INIT_FAILED, null);
 							}
 						}
 					}

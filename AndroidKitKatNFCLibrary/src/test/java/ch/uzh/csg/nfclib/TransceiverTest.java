@@ -38,16 +38,16 @@ public class TransceiverTest {
 	private Activity activity = mock(Activity.class);
 
 	private static class State {
-		NfcEvent.Type event;
+		NfcEvent event;
 		private byte[] response = null;
 		private String nfcErrorMessage = null;
 	}
 
 	private List<State> states = new ArrayList<State>();
 
-	private NfcEvent eventHandler = new NfcEvent() {
+	private INfcEventHandler eventHandler = new INfcEventHandler() {
 		@Override
-		public synchronized void handleMessage(NfcEvent.Type event, Object object) {
+		public synchronized void handleMessage(NfcEvent event, Object object) {
 			State state = new State();
 			state.event = event;
 			switch (event) {
@@ -264,8 +264,8 @@ public class TransceiverTest {
 
 		assertEquals(2, states.size());
 
-		assertEquals(NfcEvent.Type.INITIALIZED, states.get(0).event);
-		assertEquals(NfcEvent.Type.INITIALIZED, states.get(1).event);
+		assertEquals(NfcEvent.INITIALIZED, states.get(0).event);
+		assertEquals(NfcEvent.INITIALIZED, states.get(1).event);
 	}
 
 	@Test
@@ -279,7 +279,7 @@ public class TransceiverTest {
 		transceiver.initNfc();
 
 		assertEquals(1, states.size());
-		assertEquals(NfcEvent.Type.INIT_FAILED, states.get(0).event);
+		assertEquals(NfcEvent.INIT_FAILED, states.get(0).event);
 	}
 
 	@Test
@@ -293,8 +293,8 @@ public class TransceiverTest {
 		transceiver.transceive(me);
 		
 		assertEquals(4, states.size());
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(3).event);
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(2).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(3).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(2).event);
 		assertTrue(Arrays.equals(me, states.get(2).response));
 	}
 	
@@ -316,8 +316,8 @@ public class TransceiverTest {
 		transceiver.transceive(me);
 		
 		assertEquals(4, states.size());
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(3).event);
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(2).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(3).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(2).event);
 		assertTrue(Arrays.equals(me, states.get(2).response));
 
 		reset();
@@ -326,8 +326,8 @@ public class TransceiverTest {
 		transceiver.transceive(me);
 		
 		assertEquals(2, states.size());
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(1).event);
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(0).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(1).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(0).event);
 		assertTrue(Arrays.equals(me, states.get(0).response));
 	}
 	
@@ -350,8 +350,8 @@ public class TransceiverTest {
 		transceiver.transceive(me2);
 		
 		assertEquals(4, states.size());
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(3).event);
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(2).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(3).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(2).event);
 		assertTrue(Arrays.equals(me2, states.get(2).response));
 
 		assertTrue(Arrays.equals(me1, states.get(3).response));
@@ -362,8 +362,8 @@ public class TransceiverTest {
 		transceiver.transceive(me2);
 		
 		assertEquals(2, states.size());
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(1).event);
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(0).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(1).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(0).event);
 		assertTrue(Arrays.equals(me2, states.get(0).response));
 		assertTrue(Arrays.equals(me1, states.get(1).response));
 	}
@@ -380,8 +380,8 @@ public class TransceiverTest {
 		transceiver.transceive(me2);
 
 		assertEquals(4, states.size());
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(3).event);
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(2).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(3).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(2).event);
 		assertTrue(Arrays.equals(me2, states.get(2).response));
 		assertTrue(Arrays.equals(me1, states.get(3).response));
 
@@ -392,8 +392,8 @@ public class TransceiverTest {
 		transceiver.transceive(me2);
 
 		assertEquals(4, states.size());
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(3).event);
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(2).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(3).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(2).event);
 		assertTrue(Arrays.equals(me2, states.get(2).response));
 		assertTrue(Arrays.equals(me1, states.get(3).response));
 	}
@@ -411,8 +411,8 @@ public class TransceiverTest {
 		ft.get();
 		
 		assertEquals(4, states.size());
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(3).event);
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(2).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(3).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(2).event);
 
 		assertTrue(Arrays.equals(me2, states.get(2).response));
 		assertTrue(Arrays.equals(me1, states.get(3).response));
@@ -431,8 +431,8 @@ public class TransceiverTest {
 		ft.get();
 
 		assertEquals(4, states.size());
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(3).event);
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(2).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(3).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(2).event);
 
 		assertTrue(Arrays.equals(me2, states.get(2).response));
 		assertTrue(Arrays.equals(me1, states.get(3).response));
@@ -451,8 +451,8 @@ public class TransceiverTest {
 		ft.get();
 		
 		assertEquals(4, states.size());
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(3).event);
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(2).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(3).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(2).event);
 		assertTrue(Arrays.equals(me2, states.get(2).response));
 		assertTrue(Arrays.equals(me1, states.get(3).response));
 	}
@@ -470,8 +470,8 @@ public class TransceiverTest {
 		ft.get();
 
 		assertEquals(4, states.size());
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(3).event);
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(2).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(3).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(2).event);
 		assertTrue(Arrays.equals(me2, states.get(2).response));
 		assertTrue(Arrays.equals(me1, states.get(3).response));
 	}
@@ -496,8 +496,8 @@ public class TransceiverTest {
 		ft.get();
 		
 		assertEquals(4, states.size());
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(3).event);
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(2).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(3).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(2).event);
 		assertTrue(Arrays.equals(me2, states.get(2).response));
 		assertTrue(Arrays.equals(me1, states.get(3).response));
 
@@ -507,8 +507,8 @@ public class TransceiverTest {
 		ft.get();
 
 		assertEquals(2, states.size());
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(1).event);
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(0).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(1).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(0).event);
 		assertTrue(Arrays.equals(me2, states.get(0).response));
 		assertTrue(Arrays.equals(me1, states.get(1).response));
 	}
@@ -526,8 +526,8 @@ public class TransceiverTest {
 		ft.get();
 		
 		assertEquals(4, states.size());
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(3).event);
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(2).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(3).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(2).event);
 		assertTrue(Arrays.equals(me2, states.get(2).response));
 		assertTrue(Arrays.equals(me1, states.get(3).response));
 
@@ -537,8 +537,8 @@ public class TransceiverTest {
 		ft.get();
 
 		assertEquals(2, states.size());
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(1).event);
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(0).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(1).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(0).event);
 		assertTrue(Arrays.equals(me2, states.get(0).response));
 		assertTrue(Arrays.equals(me1, states.get(1).response));
 
@@ -562,8 +562,8 @@ public class TransceiverTest {
 		}
 		
 		assertEquals(4, states.size());
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(3).event);
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(2).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(3).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(2).event);
 	}
 	
 	@Test
@@ -587,7 +587,7 @@ public class TransceiverTest {
 		}
 		
 		assertEquals(5, states.size());
-		assertEquals(NfcEvent.Type.CONNECTION_LOST, states.get(2).event);
+		assertEquals(NfcEvent.CONNECTION_LOST, states.get(2).event);
 	}
 	
 	@Test
@@ -603,8 +603,8 @@ public class TransceiverTest {
 		ft.get();
 		
 		assertEquals(4, states.size());
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(3).event);
-		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(2).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(3).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(2).event);
 		assertTrue(Arrays.equals(me2, states.get(2).response));
 		assertTrue(Arrays.equals(me1, states.get(3).response));
 	}

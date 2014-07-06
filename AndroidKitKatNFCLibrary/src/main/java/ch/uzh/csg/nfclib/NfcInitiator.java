@@ -36,15 +36,16 @@ import ch.uzh.csg.nfclib.NfcMessage.Type;
  */
 public class NfcInitiator {
 
+	private static final String TAG = "ch.uzh.csg.nfclib.NfcInitiator";
+	
 	public static final int CONNECTION_TIMEOUT = 500;
 	public static final int SESSION_RESUME_THRESHOLD = 500;
 	public static final String NULL_ARGUMENT = "The message is null";
 	public static final String NFCTRANSCEIVER_NOT_CONNECTED = "Could not write message, NfcTransceiver is not connected.";
 	public static final String UNEXPECTED_ERROR = "An error occured while transceiving the message.";
-	private static final String TAG = "ch.uzh.csg.nfclib.NfcInitiator";
 
 	private final INfcTransceiver transceiver;
-	private final NfcEvent eventHandler;
+	private final INfcEventHandler eventHandler;
 	private final long userId;
 
 	private final TagDiscoveredHandler tagDiscoveredHandler = new TagDiscoveredHandler();
@@ -60,14 +61,14 @@ public class NfcInitiator {
 	private TimeoutTask task;
 	private ByteCallable byteCallable;
 
-	public NfcInitiator(NfcEvent eventHandler, Activity activity, long userId, INfcTransceiver transceiver) {
+	public NfcInitiator(INfcEventHandler eventHandler, Activity activity, long userId, INfcTransceiver transceiver) {
 		this.eventHandler = eventHandler;
 		this.userId = userId;
 		this.transceiver = transceiver;
 		messageSplitter.maxTransceiveLength(transceiver.maxLen());
 	}
 
-	public NfcInitiator(NfcEvent eventHandler, Activity activity, long userId) {
+	public NfcInitiator(INfcEventHandler eventHandler, Activity activity, long userId) {
 		this.eventHandler = eventHandler;
 		this.userId = userId;
 		if (ExternalNfcTransceiver.isExternalReaderAttached(activity)) {
@@ -128,7 +129,7 @@ public class NfcInitiator {
 
 			if (!response.isSelectAidApdu()) {
 				Log.e(TAG, "handshake unexpecetd: " + response);
-				eventHandler.handleMessage(NfcEvent.Type.INIT_FAILED, null);
+				eventHandler.handleMessage(NfcEvent.INIT_FAILED, null);
 				return;
 			}
 
@@ -148,19 +149,19 @@ public class NfcInitiator {
 				Log.d(TAG, "do not resume, fresh session");
 				if (responseUserId.type() != NfcMessage.Type.USER_ID) {
 					Log.e(TAG, "handshake user id unexpecetd: " + responseUserId);
-					initFailed(NfcEvent.Type.INIT_FAILED);
+					initFailed(NfcEvent.INIT_FAILED);
 					return;
 				}
 				reset();
 				Log.d(TAG, "handshake completed!");
 				initDone = true;
-				eventHandler.handleMessage(NfcEvent.Type.INITIALIZED, null);
+				eventHandler.handleMessage(NfcEvent.INITIALIZED, null);
 			}
 
 		} catch (Throwable t) {
 			t.printStackTrace();
 			Log.e(TAG, "init exception: ", t);
-			initFailed(NfcEvent.Type.INIT_FAILED);
+			initFailed(NfcEvent.INIT_FAILED);
 		}
 	}
 
@@ -170,9 +171,9 @@ public class NfcInitiator {
 		lastMessageSent = null;
 	}
 
-	private void initFailed(NfcEvent.Type type) {
+	private void initFailed(NfcEvent event) {
 		initDone = false;
-		eventHandler.handleMessage(type, null);
+		eventHandler.handleMessage(event, null);
 		byteCallable.set(null);
 	}
 
@@ -271,7 +272,7 @@ public class NfcInitiator {
 		}
 
 		if (!validateSequence(request1, response)) {
-			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, "sequence error");
+			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, "sequence error");
 			return false;
 		}
 
@@ -288,7 +289,7 @@ public class NfcInitiator {
 			return true;
 		} else if (response.type() != Type.GET_NEXT_FRAGMENT) {
 			done(retVal);
-			eventHandler.handleMessage(NfcEvent.Type.MESSAGE_RECEIVED, retVal);
+			eventHandler.handleMessage(NfcEvent.MESSAGE_RECEIVED, retVal);
 			byteCallable.set(retVal);
 			return false;
 		} else {
@@ -380,7 +381,7 @@ public class NfcInitiator {
 						Log.e(TAG, "connection lost, idle: " + idle);
 						latch.countDown();
 						done(null);
-						initFailed(NfcEvent.Type.CONNECTION_LOST);
+						initFailed(NfcEvent.CONNECTION_LOST);
 						return;
 					} else {
 						waitTime = CONNECTION_TIMEOUT - idle;

@@ -16,7 +16,7 @@ import ch.uzh.csg.nfclib.NfcMessage.Type;
 public class NfcResponder {
 	private static final String TAG = "ch.uzh.csg.nfclib.NfcResponder";
 
-	private final NfcEvent eventHandler;
+	private final INfcEventHandler eventHandler;
 	private final ITransceiveHandler messageHandler;
 
 	private final NfcMessageSplitter messageSplitter = new NfcMessageSplitter();
@@ -44,7 +44,7 @@ public class NfcResponder {
 		}
 	};
 
-	public NfcResponder(NfcEvent eventHandler, ITransceiveHandler messageHandler) {
+	public NfcResponder(INfcEventHandler eventHandler, ITransceiveHandler messageHandler) {
 		this.eventHandler = eventHandler;
 		this.messageHandler = messageHandler;
 		userIdReceived = 0;
@@ -113,7 +113,7 @@ public class NfcResponder {
 
 					Log.e(TAG, "sequence number mismatch " + inputMessage.sequenceNumber() + " / "
 					        + (lastMessageReceived == null ? 0 : lastMessageReceived.sequenceNumber()));
-					eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, inputMessage.toString());
+					eventHandler.handleMessage(NfcEvent.FATAL_ERROR, inputMessage.toString());
 					outputMessage = new NfcMessage(Type.EMPTY).error();
 					return prepareWrite(outputMessage, true);
 				}
@@ -151,7 +151,7 @@ public class NfcResponder {
 
 		if (incoming.isError()) {
 			Log.d(TAG, "nfc error reported - returning null");
-			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, NfcInitiator.UNEXPECTED_ERROR);
+			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcInitiator.UNEXPECTED_ERROR);
 			return null;
 		}
 		boolean hasMoreFragments = incoming.hasMoreFragments();
@@ -172,7 +172,7 @@ public class NfcResponder {
 				userIdReceived = newUserId;
 				lastMessageSent = null;
 				lastMessageReceived = null;
-				eventHandler.handleMessage(NfcEvent.Type.INITIALIZED, Long.valueOf(userIdReceived));
+				eventHandler.handleMessage(NfcEvent.INITIALIZED, Long.valueOf(userIdReceived));
 				resetStates();
 				return new NfcMessage(Type.USER_ID).startProtocol();
 			}
@@ -188,7 +188,7 @@ public class NfcResponder {
 			final byte[] receivedData = messageSplitter.data();
 			messageSplitter.clear();
 
-			eventHandler.handleMessage(NfcEvent.Type.MESSAGE_RECEIVED, receivedData);
+			eventHandler.handleMessage(NfcEvent.MESSAGE_RECEIVED, receivedData);
 
 			byte[] response = messageHandler.handleMessage(receivedData, sendLater);
 
@@ -202,7 +202,7 @@ public class NfcResponder {
 		case GET_NEXT_FRAGMENT:
 			if (messageQueue.isEmpty()) {
 				Log.e(TAG, "nothing to return1");
-				eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, null);
+				eventHandler.handleMessage(NfcEvent.FATAL_ERROR, null);
 			}
 			return messageQueue.poll();
 
@@ -229,7 +229,7 @@ public class NfcResponder {
 		Log.d(TAG, "returning: " + response.length + " bytes, " + messageQueue.size() + " fragments");
 		if (messageQueue.isEmpty()) {
 			Log.e(TAG, "nothing to return2");
-			eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, null);
+			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, null);
 		}
 		return messageQueue.poll();
 	}
@@ -271,7 +271,7 @@ public class NfcResponder {
 					if (idle > NfcInitiator.SESSION_RESUME_THRESHOLD) {
 						Log.e(TAG, "connection lost, idle: " + idle);
 						latch.countDown();
-						eventHandler.handleMessage(NfcEvent.Type.CONNECTION_LOST, null);
+						eventHandler.handleMessage(NfcEvent.CONNECTION_LOST, null);
 						return;
 					} else {
 						waitTime = NfcInitiator.SESSION_RESUME_THRESHOLD - idle;
