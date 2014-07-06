@@ -251,7 +251,7 @@ public class NfcInitiator {
 			} catch (Throwable t) {
 				// in any other case, make sure that we exit properly
 				done(null);
-				eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, t);
+				eventHandler.handleMessage(NfcEvent.FATAL_ERROR, t);
 				byteCallable.set(null);
 				Log.e(TAG, "tranceive exception nfc", t);
 				return;
