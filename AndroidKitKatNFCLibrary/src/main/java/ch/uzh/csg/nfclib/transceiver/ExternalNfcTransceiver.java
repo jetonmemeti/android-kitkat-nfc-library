@@ -1,4 +1,4 @@
-package ch.uzh.csg.nfclib;
+package ch.uzh.csg.nfclib.transceiver;
 
 import java.io.IOException;
 
@@ -11,8 +11,12 @@ import android.content.IntentFilter;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.util.Log;
-import ch.uzh.csg.nfclib.NfcMessage.Type;
+import ch.uzh.csg.nfclib.NfcLibException;
 import ch.uzh.csg.nfclib.NfcInitiator.TagDiscoveredHandler;
+import ch.uzh.csg.nfclib.events.INfcEventHandler;
+import ch.uzh.csg.nfclib.events.NfcEvent;
+import ch.uzh.csg.nfclib.messages.NfcMessage;
+import ch.uzh.csg.nfclib.messages.NfcMessage.Type;
 
 import com.acs.smartcard.Reader;
 import com.acs.smartcard.Reader.OnStateChangeListener;
@@ -27,7 +31,7 @@ import com.acs.smartcard.ReaderException;
  */
 public class ExternalNfcTransceiver implements INfcTransceiver {
 
-	private static final String TAG = "ch.uzh.csg.nfclib.ExternalNfcTransceiver";
+	private static final String TAG = "ch.uzh.csg.nfclib.transceiver.ExternalNfcTransceiver";
 
 	/*
 	 * 64 is the maximum due to a sequence bug in the ACR122u

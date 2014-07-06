@@ -10,7 +10,13 @@ import java.util.concurrent.TimeUnit;
 
 import android.nfc.cardemulation.HostApduService;
 import android.util.Log;
-import ch.uzh.csg.nfclib.NfcMessage.Type;
+import ch.uzh.csg.nfclib.events.INfcEventHandler;
+import ch.uzh.csg.nfclib.events.NfcEvent;
+import ch.uzh.csg.nfclib.hce.HostApduServiceNfcLib;
+import ch.uzh.csg.nfclib.messages.NfcMessage;
+import ch.uzh.csg.nfclib.messages.NfcMessageSplitter;
+import ch.uzh.csg.nfclib.messages.NfcMessage.Type;
+import ch.uzh.csg.nfclib.utils.Utils;
 
 /**
  * This class represents the counterpart of the {@link NfcInitiator}. It listens

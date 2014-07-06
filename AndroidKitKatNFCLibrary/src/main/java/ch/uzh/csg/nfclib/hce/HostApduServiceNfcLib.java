@@ -1,7 +1,8 @@
-package ch.uzh.csg.nfclib;
+package ch.uzh.csg.nfclib.hce;
 
 import java.util.Arrays;
 
+import ch.uzh.csg.nfclib.NfcResponder;
 import android.nfc.cardemulation.HostApduService;
 import android.os.Bundle;
 import android.util.Log;
@@ -20,7 +21,7 @@ public final class HostApduServiceNfcLib extends HostApduService {
 	 * files and will crash other projects if you do so!
 	 */
 
-	private static final String TAG = "ch.uzh.csg.nfclib.HostApduServiceNfcLib";
+	private static final String TAG = "ch.uzh.csg.nfclib.hce.HostApduServiceNfcLib";
 
 	private static NfcResponder fNfcResponder;
 	

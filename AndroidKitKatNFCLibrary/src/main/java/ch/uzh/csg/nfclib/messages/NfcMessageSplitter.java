@@ -1,9 +1,10 @@
-package ch.uzh.csg.nfclib;
+package ch.uzh.csg.nfclib.messages;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 
-import ch.uzh.csg.nfclib.NfcMessage.Type;
+import ch.uzh.csg.nfclib.messages.NfcMessage.Type;
+
 
 /**
  * This is responsible for byte array fragmentation into {@link NfcMessage}s in

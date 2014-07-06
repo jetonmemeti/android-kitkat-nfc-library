@@ -1,4 +1,5 @@
-package ch.uzh.csg.nfclib;
+package ch.uzh.csg.nfclib.events;
+
 
 /**
  * The implementation of this interface must implement what has to be done on

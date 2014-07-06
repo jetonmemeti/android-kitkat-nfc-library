@@ -1,4 +1,4 @@
-package ch.uzh.csg.nfclib;
+package ch.uzh.csg.nfclib.transceiver;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -10,8 +10,12 @@ import android.nfc.Tag;
 import android.nfc.tech.IsoDep;
 import android.os.Bundle;
 import android.util.Log;
-import ch.uzh.csg.nfclib.NfcMessage.Type;
+import ch.uzh.csg.nfclib.NfcLibException;
 import ch.uzh.csg.nfclib.NfcInitiator.TagDiscoveredHandler;
+import ch.uzh.csg.nfclib.events.INfcEventHandler;
+import ch.uzh.csg.nfclib.events.NfcEvent;
+import ch.uzh.csg.nfclib.messages.NfcMessage;
+import ch.uzh.csg.nfclib.messages.NfcMessage.Type;
 
 /**
  * This class handles the initialization and the message exchange over NFC for
@@ -22,7 +26,7 @@ import ch.uzh.csg.nfclib.NfcInitiator.TagDiscoveredHandler;
  */
 public class InternalNfcTransceiver implements ReaderCallback, INfcTransceiver {
 	
-	private static final String TAG = "ch.uzh.csg.nfclib.InternalNfcTransceiver";
+	private static final String TAG = "ch.uzh.csg.nfclib.transceiver.InternalNfcTransceiver";
 
 	/*
 	 * NXP chip supports max 255 bytes (problems might arise sometimes if

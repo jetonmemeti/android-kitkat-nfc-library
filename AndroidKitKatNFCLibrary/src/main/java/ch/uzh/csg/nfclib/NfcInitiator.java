@@ -13,7 +13,15 @@ import java.util.concurrent.TimeUnit;
 
 import android.app.Activity;
 import android.util.Log;
-import ch.uzh.csg.nfclib.NfcMessage.Type;
+import ch.uzh.csg.nfclib.events.INfcEventHandler;
+import ch.uzh.csg.nfclib.events.NfcEvent;
+import ch.uzh.csg.nfclib.messages.NfcMessage;
+import ch.uzh.csg.nfclib.messages.NfcMessageSplitter;
+import ch.uzh.csg.nfclib.messages.NfcMessage.Type;
+import ch.uzh.csg.nfclib.transceiver.ExternalNfcTransceiver;
+import ch.uzh.csg.nfclib.transceiver.INfcTransceiver;
+import ch.uzh.csg.nfclib.transceiver.InternalNfcTransceiver;
+import ch.uzh.csg.nfclib.utils.Utils;
 
 /**
  * This class represents the NFC party which initiates a NFC connection. It

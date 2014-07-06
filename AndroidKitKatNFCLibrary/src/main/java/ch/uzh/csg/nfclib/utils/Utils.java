@@ -1,4 +1,4 @@
-package ch.uzh.csg.nfclib;
+package ch.uzh.csg.nfclib.utils;
 
 /**
  * This is a class for miscellaneous functions.

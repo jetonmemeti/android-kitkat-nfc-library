@@ -27,7 +27,11 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import android.app.Activity;
 import android.util.Log;
 import ch.uzh.csg.nfclib.NfcInitiator.TagDiscoveredHandler;
-import ch.uzh.csg.nfclib.NfcMessage.Type;
+import ch.uzh.csg.nfclib.events.INfcEventHandler;
+import ch.uzh.csg.nfclib.events.NfcEvent;
+import ch.uzh.csg.nfclib.messages.NfcMessage;
+import ch.uzh.csg.nfclib.messages.NfcMessage.Type;
+import ch.uzh.csg.nfclib.transceiver.INfcTransceiver;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(Log.class)

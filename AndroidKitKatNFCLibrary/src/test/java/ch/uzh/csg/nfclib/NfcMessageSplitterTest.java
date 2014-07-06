@@ -9,8 +9,8 @@ import java.util.Arrays;
 
 import org.junit.Test;
 
-import ch.uzh.csg.nfclib.NfcMessage;
-import ch.uzh.csg.nfclib.NfcMessageSplitter;
+import ch.uzh.csg.nfclib.messages.NfcMessage;
+import ch.uzh.csg.nfclib.messages.NfcMessageSplitter;
 
 public class NfcMessageSplitterTest  {
 	

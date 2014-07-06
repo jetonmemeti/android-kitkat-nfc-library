@@ -1,7 +1,9 @@
-package ch.uzh.csg.nfclib;
+package ch.uzh.csg.nfclib.transceiver;
 
 import java.io.IOException;
 
+import ch.uzh.csg.nfclib.NfcLibException;
+import ch.uzh.csg.nfclib.messages.NfcMessage;
 import android.app.Activity;
 
 /**

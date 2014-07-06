@@ -1,4 +1,4 @@
-package ch.uzh.csg.nfclib;
+package ch.uzh.csg.nfclib.events;
 
 /**
  * This represents all event types, which are or can be send during a NFC
