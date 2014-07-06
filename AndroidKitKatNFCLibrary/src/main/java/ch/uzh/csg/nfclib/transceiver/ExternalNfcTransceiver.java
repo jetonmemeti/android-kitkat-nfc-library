@@ -17,6 +17,7 @@ import ch.uzh.csg.nfclib.events.INfcEventHandler;
 import ch.uzh.csg.nfclib.events.NfcEvent;
 import ch.uzh.csg.nfclib.messages.NfcMessage;
 import ch.uzh.csg.nfclib.messages.NfcMessage.Type;
+import ch.uzh.csg.nfclib.utils.Config;
 
 import com.acs.smartcard.Reader;
 import com.acs.smartcard.Reader.OnStateChangeListener;
@@ -72,8 +73,6 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 
 	@Override
 	public void enable(Activity activity) throws NfcLibException {
-		Log.d(TAG, "enable external NFC");
-
 		UsbManager manager = (UsbManager) activity.getSystemService(Context.USB_SERVICE);
 		reader = new Reader(manager);
 
@@ -118,13 +117,17 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 	@Override
 	public NfcMessage write(NfcMessage input) throws IOException {
 		if (!isEnabled()) {
-			Log.d(TAG, "could not write message, reader is not enabled");
+			if (Config.DEBUG)
+				Log.d(TAG, "could not write message, reader is not enabled");
+			
 			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
 			return new NfcMessage(Type.EMPTY).sequenceNumber(input).error();
 		}
 
 		if (reader.isOpened()) {
-			Log.d(TAG, "could not write message, reader is no longer connected");
+			if (Config.DEBUG)
+				Log.d(TAG, "could not write message, reader is not or no longe open");
+			
 			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
 			return new NfcMessage(Type.EMPTY).sequenceNumber(input).error();
 		}
@@ -139,13 +142,17 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 		try {
 			length = reader.transmit(0, bytes, bytes.length, recvBuffer, recvBuffer.length);
 		} catch (ReaderException e) {
-			Log.d(TAG, "could not write message, ReaderException", e);
+			if (Config.DEBUG)
+				Log.e(TAG, "could not write message - ReaderException", e);
+			
 			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, UNEXPECTED_ERROR);
 			return new NfcMessage(Type.EMPTY).sequenceNumber(input).error();
 		}
 
 		if (length <= 0) {
-			Log.d(TAG, "could not write message, return value is 0");
+			if (Config.DEBUG)
+				Log.d(TAG, "could not write message - return value is 0");
+			
 			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, UNEXPECTED_ERROR);
 			return new NfcMessage(Type.EMPTY).sequenceNumber(input).error();
 		}
@@ -158,16 +165,22 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 	private void setOnStateChangedListener() {
 		reader.setOnStateChangeListener(new OnStateChangeListener() {
 			public void onStateChange(int slotNum, int prevState, int currState) {
-				Log.d(TAG, "statechange from: " + prevState + " to: " + currState);
+				if (Config.DEBUG)
+					Log.d(TAG, "statechange from: " + prevState + " to: " + currState);
+				
 				if (currState == Reader.CARD_PRESENT) {
 					try {
 						initCard();
 						nfcInit.tagDiscovered();
 					} catch (ReaderException e) {
-						Log.e(TAG, "Could not connnect reader1: ", e);
+						if (Config.DEBUG)
+							Log.e(TAG, "Could not connnect reader (ReaderException): ", e);
+						
 						eventHandler.handleMessage(NfcEvent.INIT_FAILED, null);
 					} catch (IOException e) {
-						Log.e(TAG, "Could not connnect reader2: ", e);
+						if (Config.DEBUG)
+							Log.e(TAG, "Could not connnect reader (IOException): ", e);
+						
 						eventHandler.handleMessage(NfcEvent.INIT_FAILED, null);
 					}
 				}

@@ -3,6 +3,7 @@ package ch.uzh.csg.nfclib.hce;
 import java.util.Arrays;
 
 import ch.uzh.csg.nfclib.NfcResponder;
+import ch.uzh.csg.nfclib.utils.Config;
 import android.nfc.cardemulation.HostApduService;
 import android.os.Bundle;
 import android.util.Log;
@@ -35,24 +36,23 @@ public final class HostApduServiceNfcLib extends HostApduService {
 
 	@Override
 	public byte[] processCommandApdu(final byte[] bytes, final Bundle extras) {
-		final long start = System.currentTimeMillis();
 		if (fNfcResponder == null) {
 			Log.w(TAG, "no CustomHostApduService set");
 			return null;
 		}
 		final byte[] retVal = fNfcResponder.processIncomingData(bytes);
-		Log.d(TAG, "about to return "+Arrays.toString(retVal));
-		Log.e(TAG, "time to respond: "+(System.currentTimeMillis() - start));
+		
+		if (Config.DEBUG)
+			Log.d(TAG, "about to return "+Arrays.toString(retVal));
+		
 		return retVal;
 	}
 
 	@Override
 	public void onDeactivated(final int reason) {
-		if (fNfcResponder == null) {
-			Log.w(TAG, "no CustomHostApduService set");
-			return;
+		if (fNfcResponder != null) {
+			fNfcResponder.onDeactivated(reason);
 		}
-		fNfcResponder.onDeactivated(reason);
 	}
 	
 }

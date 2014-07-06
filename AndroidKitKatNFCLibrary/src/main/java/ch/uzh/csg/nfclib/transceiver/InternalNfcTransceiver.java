@@ -1,7 +1,6 @@
 package ch.uzh.csg.nfclib.transceiver;
 
 import java.io.IOException;
-import java.util.Arrays;
 
 import android.app.Activity;
 import android.nfc.NfcAdapter;
@@ -10,12 +9,13 @@ import android.nfc.Tag;
 import android.nfc.tech.IsoDep;
 import android.os.Bundle;
 import android.util.Log;
-import ch.uzh.csg.nfclib.NfcLibException;
 import ch.uzh.csg.nfclib.NfcInitiator.TagDiscoveredHandler;
+import ch.uzh.csg.nfclib.NfcLibException;
 import ch.uzh.csg.nfclib.events.INfcEventHandler;
 import ch.uzh.csg.nfclib.events.NfcEvent;
 import ch.uzh.csg.nfclib.messages.NfcMessage;
 import ch.uzh.csg.nfclib.messages.NfcMessage.Type;
+import ch.uzh.csg.nfclib.utils.Config;
 
 /**
  * This class handles the initialization and the message exchange over NFC for
@@ -63,8 +63,6 @@ public class InternalNfcTransceiver implements ReaderCallback, INfcTransceiver {
 
 	@Override
 	public void enable(Activity activity) throws NfcLibException {
-		Log.d(TAG, "enable internal NFC");
-
 		nfcAdapter = android.nfc.NfcAdapter.getDefaultAdapter(activity);
 		if (nfcAdapter == null) {
 			throw new NfcLibException("NFC Adapter is null");
@@ -93,12 +91,12 @@ public class InternalNfcTransceiver implements ReaderCallback, INfcTransceiver {
 
 	@Override
 	public void disable(Activity activity) {
-		Log.d(TAG, "disable NFC");
 		if (isoDep != null && isoDep.isConnected()) {
 			try {
 				isoDep.close();
 			} catch (IOException e) {
-				Log.d(TAG, "tried close!");
+				if (Config.DEBUG)
+					Log.d(TAG, "could not close isodep", e);
 			}
 		}
 		if (nfcAdapter != null && enabled) {
@@ -120,13 +118,17 @@ public class InternalNfcTransceiver implements ReaderCallback, INfcTransceiver {
 
 	@Override
 	public void onTagDiscovered(Tag tag) {
-		Log.d(TAG, "tag discovered " + tag);
+		if (Config.DEBUG)
+			Log.d(TAG, "tag discovered: " + tag);
+		
 		isoDep = IsoDep.get(tag);
 		try {
 			isoDep.connect();
 			nfcInit.tagDiscovered();
 		} catch (IOException e) {
-			Log.e(TAG, "Could not connnect isodep: ", e);
+			if (Config.DEBUG)
+				Log.e(TAG, "Could not connnect isodep: ", e);
+			
 			eventHandler.handleMessage(NfcEvent.INIT_FAILED, null);
 		}
 	}
@@ -144,13 +146,17 @@ public class InternalNfcTransceiver implements ReaderCallback, INfcTransceiver {
 	@Override
 	public NfcMessage write(NfcMessage input) throws IOException {
 		if (!isEnabled()) {
-			Log.d(TAG, "could not write message, isodep is not enabled");
+			if (Config.DEBUG)
+				Log.d(TAG, "could not write message, isodep is not enabled");
+			
 			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
 			return new NfcMessage(Type.EMPTY).sequenceNumber(input).error();
 		}
 
 		if (!isoDep.isConnected()) {
-			Log.d(TAG, "could not write message, isodep is no longer connected");
+			if (Config.DEBUG)
+				Log.d(TAG, "could not write message, isodep is not or no longer connected");
+			
 			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
 			return new NfcMessage(Type.EMPTY).sequenceNumber(input).error();
 		}
@@ -161,7 +167,7 @@ public class InternalNfcTransceiver implements ReaderCallback, INfcTransceiver {
 		} else if (bytes.length > maxLen) {
 			throw new IllegalArgumentException("The message length exceeds the maximum capacity of " + maxLen + " bytes.");
 		}
-		Log.d(TAG, "about to write: " + Arrays.toString(bytes));
+		
 		return new NfcMessage(isoDep.transceive(bytes));
 	}
 
