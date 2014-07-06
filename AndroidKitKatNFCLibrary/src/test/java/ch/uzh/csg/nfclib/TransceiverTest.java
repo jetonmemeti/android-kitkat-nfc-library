@@ -557,10 +557,6 @@ public class TransceiverTest {
 		Future<byte[]> ft = transceiver.transceive(me2);
 		ft.get();
 		
-		for (State s : states) {
-			System.err.println(s.event.name());
-		}
-		
 		assertEquals(4, states.size());
 		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(3).event);
 		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(2).event);
@@ -582,9 +578,6 @@ public class TransceiverTest {
 		// due to onTagDiscovered, that this test will throw. So we'll
 		// initialize the library again.
 		Thread.sleep(1500);
-		for (State s : states) {
-			System.err.println(s.event.name());
-		}
 		
 		assertEquals(5, states.size());
 		assertEquals(NfcEvent.CONNECTION_LOST, states.get(2).event);
