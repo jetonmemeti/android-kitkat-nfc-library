@@ -3,13 +3,14 @@ package ch.uzh.csg.nfclib;
 import java.util.Arrays;
 
 /**
- * This is the lower layer protocol message. It is responsible for sending
- * Messages between two devices via NFC. It is build to allow message
+ * This is the NFC layer protocol message. It is responsible for sending
+ * Messages between two devices over NFC. It is build to allow message
  * fragmentation and reassembly, based on the communication device's NFC message
- * size capabilities. The status values in the header can be combined (OR, AND,
- * etc.) to transmit more than one status to the counterpart. The header
- * contains also a sequence number in order to detect multiple transmission of
- * the same messages or the lost of a message.
+ * size capabilities.
+ * 
+ * The flags in the header can be combined (OR, AND, etc.) to transmit more than
+ * one status to the counterpart. The header contains also a sequence number in
+ * order to detect multiple transmission of the same messages or a message loss.
  * 
  * @author Jeton Memeti
  * @author Thomas Bocek
@@ -56,6 +57,12 @@ public class NfcMessage {
 	private int sequenceNumber = 0;
 	private byte[] payload = new byte[0];
 
+	/**
+	 * Sets the data of this message and returns it.
+	 * 
+	 * @param input
+	 *            the header as well as the payload of this {@link NfcMessage}
+	 */
 	public NfcMessage(byte[] input) {
 		final int len = input.length;
 		if (Arrays.equals(input, READ_BINARY)) {
@@ -85,24 +92,49 @@ public class NfcMessage {
 		}
 	}
 
+	/**
+	 * Sets the type of this message and returns it.
+	 * 
+	 * @param messageType
+	 *            the {@link Type} to set
+	 */
 	public NfcMessage(Type messageType) {
 		header = messageType.ordinal();
 	}
 
+	/**
+	 * Returns the type of this message.
+	 */
 	public Type type() {
 		// type is encoded in the last 3 bits
 		return Type.values()[header & 0x7];
 	}
 
+	/**
+	 * Sets the payload of this message and returns it.
+	 * 
+	 * @param payload
+	 *            the payload to set
+	 */
 	public NfcMessage payload(byte[] payload) {
 		this.payload = payload;
 		return this;
 	}
 
+	/**
+	 * Returns the payload of this message.
+	 */
 	public byte[] payload() {
 		return payload;
 	}
 
+	/**
+	 * Sets the sequence number of this message and returns it.
+	 * 
+	 * @param previousMessage
+	 *            the previous {@link NfcMessage} which has been sent over NFC
+	 * @return this message with the appropriate sequence number
+	 */
 	public NfcMessage sequenceNumber(NfcMessage previousMessage) {
 		if (previousMessage == null) {
 			sequenceNumber = 0;
@@ -112,10 +144,22 @@ public class NfcMessage {
 		return this;
 	}
 
+	/**
+	 * Returns the sequence number of this message.
+	 */
 	public int sequenceNumber() {
 		return sequenceNumber;
 	}
 
+	/**
+	 * Verifies that this message has a correct sequence number based on the
+	 * previous {@link NfcMessage} sent or received.
+	 * 
+	 * @param previousMessage
+	 *            the previous {@link NfcMessage} sent or received
+	 * @return true if the sequence number is by one larger than the previous,
+	 *         false otherwise
+	 */
 	public boolean check(NfcMessage previousMessage) {
 		final int check;
 		if (previousMessage == null) {
@@ -126,6 +170,14 @@ public class NfcMessage {
 		return sequenceNumber == (check + 1) % 255;
 	}
 	
+	/**
+	 * Returns true, if the sequence number of this message is equals to the
+	 * sequence number of the previous message. If the previous message is null,
+	 * false is returned.
+	 * 
+	 * @param previousMessage
+	 *            the last {@link NfcMessage} sent or received
+	 */
 	public boolean repeatLast(NfcMessage previousMessage) {
 		if (previousMessage == null) {
 			return false;
@@ -133,12 +185,15 @@ public class NfcMessage {
 		return sequenceNumber == previousMessage.sequenceNumber;
 	}
 
-	// flags
+	/**
+	 * Returns true if the flag in the header is set to start protocol, false
+	 * otherwise.
+	 */
 	public boolean isStartProtocol() {
 		return (header & START_PROTOCOL) != 0;
 	}
 
-	public NfcMessage startProtocol(boolean startProtocol) {
+	private NfcMessage startProtocol(boolean startProtocol) {
 		if (startProtocol) {
 			header = header | START_PROTOCOL;
 		} else {
@@ -147,16 +202,23 @@ public class NfcMessage {
 		return this;
 	}
 
+	/**
+	 * Sets the start protocol flag of this message to true and returns it.
+	 */
 	public NfcMessage startProtocol() {
 		startProtocol(true);
 		return this;
 	}
 
+	/**
+	 * Returns true if this message has more fragments which need to be
+	 * reassembled after receiving. (Returns if the given flag is set).
+	 */
 	public boolean hasMoreFragments() {
 		return (header & HAS_MORE_FRAGMENTS) != 0;
 	}
 
-	public NfcMessage hasMoreFragments(boolean hasMoreFragments) {
+	private NfcMessage hasMoreFragments(boolean hasMoreFragments) {
 		if (hasMoreFragments) {
 			header = header | HAS_MORE_FRAGMENTS;
 		} else {
@@ -165,16 +227,22 @@ public class NfcMessage {
 		return this;
 	}
 
+	/**
+	 * Sets the has more fragments flag of this message and returns it.
+	 */
 	public NfcMessage setMoreFragments() {
 		hasMoreFragments(true);
 		return this;
 	}
 
+	/**
+	 * Returns true if the error flag of this message is set, false otherwise.
+	 */
 	public boolean isError() {
 		return (header & ERROR) != 0;
 	}
 
-	public NfcMessage error(boolean error) {
+	private NfcMessage error(boolean error) {
 		if (error) {
 			header = header | ERROR;
 		} else {
@@ -183,16 +251,23 @@ public class NfcMessage {
 		return this;
 	}
 
+	/**
+	 * Sets the error flag of this message and returns it.
+	 */
 	public NfcMessage error() {
 		error(true);
 		return this;
 	}
 
+	/**
+	 * Returns true if this message is a request (i.e., if the request flag of
+	 * this message is set).
+	 */
 	public boolean isRequest() {
 		return (header & REQUEST) != 0;
 	}
 
-	public NfcMessage request(boolean request) {
+	private NfcMessage request(boolean request) {
 		if (request) {
 			header = header | REQUEST;
 		} else {
@@ -201,28 +276,43 @@ public class NfcMessage {
 		return this;
 	}
 	
+	/**
+	 * Sets the request flag of this message and returns it.
+	 */
 	public NfcMessage request() {
 		request(true);
 		return this;
 	}
 	
+	/**
+	 * Returns true if this message is a response (i.e., if the request lag of
+	 * this message is not set).
+	 */
 	public boolean isResponse() {
 		return !isRequest();
 	}
 
+	/**
+	 * Sets this message as a response (i.e., unsets the request flag).
+	 */
 	public NfcMessage response() {
 		request(false);
 		return this;
 	}
 
-	public NfcMessage response(boolean response) {
-		return request(!response);
-	}
-	
+	/**
+	 * Returns true, if this is a resume message (i.e., the resume flag is set).
+	 */
 	public boolean isResume() {
 		return (header & RESUME) != 0;
 	}
 
+	/**
+	 * Sets the resume flag of this message to the given value and returns it.
+	 * 
+	 * @param resume
+	 *            true or false
+	 */
 	public NfcMessage resume(boolean resume) {
 		if (resume) {
 			header = header | RESUME;
@@ -232,21 +322,32 @@ public class NfcMessage {
 		return this;
 	}
 	
+	/**
+	 * Sets the resume flag of this message and returns it.
+	 */
 	public NfcMessage resume() {
 		resume(true);
 		return this;
 	}
 
+	/**
+	 * Returns true if the type of this message is read binary.
+	 */
 	public boolean isReadBinary() {
 		return type() == Type.READ_BINARY;
 	}
 
+	/**
+	 * Returns true if the type of this message is aid selected.
+	 */
 	public boolean isSelectAidApdu() {
 		// does not matter if request or response
 		return type() == Type.AID_SELECTED;
 	}
 
-	// serialization
+	/**
+	 * Returns the bytes of this message (i.e., serializes it).
+	 */
 	public byte[] bytes() {
 		if (isSelectAidApdu() && isRequest()) {
 			return CLA_INS_P1_P2_AID_MBPS;
@@ -262,7 +363,7 @@ public class NfcMessage {
 		return output;
 	}
 
-	public boolean isEmpty() {
+	private boolean isEmpty() {
 		return header == 0 && sequenceNumber == 0 && payload.length == 0;
 	}
 
@@ -292,4 +393,5 @@ public class NfcMessage {
 		}
 		return sb.toString();
 	}
+	
 }

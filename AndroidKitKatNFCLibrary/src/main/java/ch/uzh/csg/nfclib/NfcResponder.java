@@ -12,7 +12,15 @@ import android.nfc.cardemulation.HostApduService;
 import android.util.Log;
 import ch.uzh.csg.nfclib.NfcMessage.Type;
 
-//TODO: javadoc
+/**
+ * This class represents the counterpart of the {@link NfcInitiator}. It listens
+ * for incoming NFC messages and provides the appropriate response.
+ * 
+ * Message fragmentation and reassembly is handled internally.
+ * 
+ * @author Jeton
+ * 
+ */
 public class NfcResponder {
 	private static final String TAG = "ch.uzh.csg.nfclib.NfcResponder";
 
@@ -44,6 +52,15 @@ public class NfcResponder {
 		}
 	};
 
+	/**
+	 * Instantiates a new object to response to incoming NFC messages.
+	 * 
+	 * @param eventHandler
+	 *            the {@link INfcEventHandler} to listen for {@link NfcEvent}s
+	 * @param messageHandler
+	 *            the {@link ITransceiveHandler} which provides appropriate
+	 *            responses for incoming messages
+	 */
 	public NfcResponder(INfcEventHandler eventHandler, ITransceiveHandler messageHandler) {
 		this.eventHandler = eventHandler;
 		this.messageHandler = messageHandler;
@@ -73,6 +90,14 @@ public class NfcResponder {
 		}
 	}
 
+	/**
+	 * Processes the incoming data and returns the appropriate response.
+	 * 
+	 * @param bytes
+	 *            the data which has been received over NFC
+	 * @return the response which should be returned over NFC to the
+	 *         {@link NfcInitiator}
+	 */
 	public byte[] processIncomingData(byte[] bytes) {
 		// if a shutdowtask is running, shutdown, as we can continue
 		shutdownTask();
@@ -110,9 +135,7 @@ public class NfcResponder {
 				lastMessageReceived = inputMessage;
 
 				if (!check && !repeat) {
-
-					Log.e(TAG, "sequence number mismatch " + inputMessage.sequenceNumber() + " / "
-					        + (lastMessageReceived == null ? 0 : lastMessageReceived.sequenceNumber()));
+					Log.e(TAG, "sequence number mismatch " + inputMessage.sequenceNumber() + " / " + (lastMessageReceived == null ? 0 : lastMessageReceived.sequenceNumber()));
 					eventHandler.handleMessage(NfcEvent.FATAL_ERROR, inputMessage.toString());
 					outputMessage = new NfcMessage(Type.EMPTY).error();
 					return prepareWrite(outputMessage, true);
@@ -234,9 +257,15 @@ public class NfcResponder {
 		return messageQueue.poll();
 	}
 
+	/**
+	 * This has to be called whenever the system detects that the NFC has been
+	 * aborted.
+	 * 
+	 * @param reason
+	 *            see {@link HostApduServiceNfcLib}
+	 */
 	public void onDeactivated(int reason) {
-		Log.d(TAG, "deactivated due to "
-		        + (reason == HostApduService.DEACTIVATION_LINK_LOSS ? "link loss" : "deselected") + "(" + reason + ")");
+		Log.d(TAG, "deactivated due to " + (reason == HostApduService.DEACTIVATION_LINK_LOSS ? "link loss" : "deselected") + "(" + reason + ")");
 
 		shutdownTask();
 		task = new TimeoutTask();
@@ -283,4 +312,5 @@ public class NfcResponder {
 			}
 		}
 	}
+	
 }

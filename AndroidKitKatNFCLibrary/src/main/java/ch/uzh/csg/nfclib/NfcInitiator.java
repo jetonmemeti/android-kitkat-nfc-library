@@ -15,27 +15,29 @@ import android.app.Activity;
 import android.util.Log;
 import ch.uzh.csg.nfclib.NfcMessage.Type;
 
-//TODO: javadoc
-
 /**
- * packet flow:
+ * This class represents the NFC party which initiates a NFC connection. It
+ * sends a request and receives a response from the {@link NfcResponder}. This
+ * can be repeated as often as required.
  * 
- * <pre>
+ * To be able to send and receive messages, enable() has to be called first.
+ * Afterwards, transceive(byte[]) can be called. Once all messages are
+ * exchanged, disable() has to be called in order to stop the services
+ * appropriately.
+ * 
+ * Packet flow (handshake):
  * sender -> recipient
- * apdu_contst -> AID_SELECTED -> USER_ID (REQ) -> USER_ID (OK) -> handshake complete
- * 
- * 1st message:username, currency, amount - not signed -> 2nd message:username payer - payee,  (see paymentrequesthandler)
- * -> server call -> signed response from server -> send ok back
- * 
- * 
- * </pre>
+ * APDU ->
+ * <- AID_SELECTED
+ * -> USER_ID
+ * <- USER_ID
+ * = handshake complete
  * 
  * @author Jeton Memeti
  * @author Thomas Bocek
  * 
  */
 public class NfcInitiator {
-
 	private static final String TAG = "ch.uzh.csg.nfclib.NfcInitiator";
 	
 	public static final int CONNECTION_TIMEOUT = 500;
@@ -61,6 +63,21 @@ public class NfcInitiator {
 	private TimeoutTask task;
 	private ByteCallable byteCallable;
 
+	/**
+	 * Instantiates a new object. Use this constructor, if you want to provide a
+	 * specific {@link INfcTransceiver}.
+	 * 
+	 * @param eventHandler
+	 *            the {@link INfcEventHandler} to listen for {@link NfcEvent}s
+	 * @param activity
+	 *            the application's current activity to bind the NFC service to
+	 *            it
+	 * @param userId
+	 *            the identifier of this user (or this mobile device)
+	 * @param transceiver
+	 *            the transceiver responsible for writing messages and returning
+	 *            the incoming response
+	 */
 	public NfcInitiator(INfcEventHandler eventHandler, Activity activity, long userId, INfcTransceiver transceiver) {
 		this.eventHandler = eventHandler;
 		this.userId = userId;
@@ -68,6 +85,19 @@ public class NfcInitiator {
 		messageSplitter.maxTransceiveLength(transceiver.maxLen());
 	}
 
+	/**
+	 * Instantiates a new object. If the ACR122u USB NFC reader is attached, it
+	 * will be used for the NFC. Otherwise, the build-in NFC controller will be
+	 * used.
+	 * 
+	 * @param eventHandler
+	 *            the {@link INfcEventHandler} to listen for {@link NfcEvent}s
+	 * @param activity
+	 *            the application's current activity to bind the NFC service to
+	 *            it
+	 * @param userId
+	 *            the identifier of this user (or this mobile device)
+	 */
 	public NfcInitiator(INfcEventHandler eventHandler, Activity activity, long userId) {
 		this.eventHandler = eventHandler;
 		this.userId = userId;
@@ -79,14 +109,16 @@ public class NfcInitiator {
 		messageSplitter.maxTransceiveLength(transceiver.maxLen());
 	}
 
-	public TagDiscoveredHandler tagDiscoveredHandler() {
+	protected TagDiscoveredHandler tagDiscoveredHandler() {
 		return tagDiscoveredHandler;
 	}
 
-	public INfcTransceiver nfcTransceiver() {
-		return transceiver;
-	}
-
+	/**
+	 * Binds the NFC service to this activity and initializes the NFC features.
+	 * 
+	 * @param activity
+	 *            the application's current activity (may not be null)
+	 */
 	public void enable(Activity activity) {
 		executorService = Executors.newSingleThreadExecutor();
 		try {
@@ -96,6 +128,13 @@ public class NfcInitiator {
 		}
 	}
 
+	/**
+	 * Unbinds the NFC service from this activity and releases it for other
+	 * applications.
+	 * 
+	 * @param activity
+	 *            the application's current activity (may not be null)
+	 */
 	public void disable(Activity activity) {
 		if (executorService != null) {
 			executorService.shutdown();
@@ -113,19 +152,23 @@ public class NfcInitiator {
 	}
 
 	/**
-	 * The init NFC messages that sends first a handshake. This method always
-	 * needs to call the evenhandler in any case. The handshake is as follows:
-	 * send AID -> get NfcMessage.AID / send NfcMessage.USER_ID -> get
-	 * NfcMessage.USER_ID ok
+	 * Initializes the NFC feature by a handshake. This method always needs to
+	 * call the event handler in any case.
+	 * 
+	 * The handshake is as follows:
+	 * send AID
+	 * get NfcMessage.AID
+	 * send NfcMessage.USER_ID
+	 * get NfcMessage.USER_ID
 	 */
-	void initNfc() {
+	protected void initNfc() {
 		try {
 			Log.d(TAG, "init NFC");
 
 			NfcMessage initMessage = new NfcMessage(Type.AID_SELECTED).request();
 			// no sequence number here, as this is a special message
 			NfcMessage response = transceiver.write(initMessage);
-			// //--> here we can get an exception
+			// --> here we can get an exception
 
 			if (!response.isSelectAidApdu()) {
 				Log.e(TAG, "handshake unexpecetd: " + response);
@@ -140,7 +183,7 @@ public class NfcInitiator {
 			NfcMessage msg = new NfcMessage(NfcMessage.Type.USER_ID).payload(merged).resume(isResume());
 			// no sequence number, this is considered as part of the handshake
 			NfcMessage responseUserId = transceiver.write(msg);
-			// //--> here we can get an exception
+			// --> here we can get an exception
 
 			if (isResume()) {
 				Log.d(TAG, "resume!");
@@ -177,7 +220,27 @@ public class NfcInitiator {
 		byteCallable.set(null);
 	}
 
-	// TODO: try to rething future here
+	// TODO: try to rethink future here
+	/**
+	 * Sends any byte message to the NFC communication partner and returns the
+	 * response. Enable has to be called first before transceiving any data.
+	 * 
+	 * It is possible (with NXP controllers) that the NFC connection is aborted
+	 * in the meantime and directly followed by a handshake. In this case, the
+	 * response cannot be provided immediately. For a blocking behavior,
+	 * Future.get() has to be called.
+	 * 
+	 * The message to send can be arbitrary large. If it exceeds the size
+	 * limitation of the underlying NFC, it will be fragmented and reassembled
+	 * internally.
+	 * 
+	 * @param bytes
+	 *            the payload to be sent
+	 * @return the future object which returns the response as soon as it is
+	 *         ready (blocking)
+	 * @throws IllegalArgumentException
+	 *             if bytes is null or empty
+	 */
 	public Future<byte[]> transceive(byte[] bytes) throws IllegalArgumentException {
 		if (bytes == null || bytes.length == 0) {
 			throw new IllegalArgumentException(NULL_ARGUMENT);
@@ -195,8 +258,10 @@ public class NfcInitiator {
 		FutureTask<byte[]> futureTask = new FutureTask<byte[]>(byteCallable);
 		byteCallable.future(futureTask);
 
-		// hint the gc that now is a good time to cleanup. Its better to cleanup
-		// before we start the timeout task
+		/*
+		 * hint the gc that now is a good time to cleanup. Its better to cleanup
+		 * before we start the timeout task
+		 */
 		System.gc();
 		task = new TimeoutTask();
 		executorService.submit(task);
@@ -228,11 +293,11 @@ public class NfcInitiator {
 				if (response == null) {
 					// we sent a request, the other side received it, handled
 					// it, but the reply did not arrive. Response will only be
-					// null when
-					// debugging. In reality, we need a timeout handler
+					// null when debugging. In reality, we need a timeout
+					// handler.
 					return;
 				}
-				// inidcate acitivity to not run into a timeout
+				// indicate activity to not run into a timeout
 				task.active();
 				boolean cont = handleTransceive(request1, response);
 				if (!cont) {
@@ -259,19 +324,20 @@ public class NfcInitiator {
 		}
 	}
 
-	// important to return boolean, as we want to know if we want to proceed or
-	// quit the message queue.
-	private boolean handleTransceive(NfcMessage request1, NfcMessage response) {
-
-		lastMessageSent = request1;
+	/*
+	 * important to return boolean, as we want to know if we want to proceed or
+	 * quit the message queue.
+	 */
+	private boolean handleTransceive(NfcMessage request, NfcMessage response) {
+		lastMessageSent = request;
 		// every thing is ok, remove from queue
 		final NfcMessage request2 = messageQueue.poll();
 		// sanity check
-		if (!request1.equals(request2)) {
-			Log.e(TAG, "sync exception " + request1 + " / " + request2);
+		if (!request.equals(request2)) {
+			Log.e(TAG, "sync exception " + request + " / " + request2);
 		}
 
-		if (!validateSequence(request1, response)) {
+		if (!validateSequence(request, response)) {
 			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, "sequence error");
 			return false;
 		}
@@ -307,8 +373,7 @@ public class NfcInitiator {
 	private boolean validateSequence(final NfcMessage request, final NfcMessage response) {
 		final boolean check = response.check(request);
 		if (!check) {
-			Log.e(TAG, "sequence number mismatch, expected " + ((request.sequenceNumber() + 1) % 255) + ", but was: "
-			        + response.sequenceNumber());
+			Log.e(TAG, "sequence number mismatch, expected " + ((request.sequenceNumber() + 1) % 255) + ", but was: " + response.sequenceNumber());
 			return false;
 		}
 		return true;
@@ -339,6 +404,10 @@ public class NfcInitiator {
 		}
 	};
 
+	/**
+	 * This class initializes the {@link NfcInitiator} as soon as a NFC tag has
+	 * been discovered.
+	 */
 	public class TagDiscoveredHandler {
 		public void tagDiscovered() throws IOException {
 			initNfc();
