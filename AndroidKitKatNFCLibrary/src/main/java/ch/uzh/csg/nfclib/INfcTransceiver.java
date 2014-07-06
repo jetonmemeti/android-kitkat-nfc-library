@@ -14,6 +14,7 @@ import android.app.Activity;
 public interface INfcTransceiver {
 
 	public static final String NFCTRANSCEIVER_NOT_CONNECTED = "Could not write message, NfcTransceiver is not connected.";
+	public static final String UNEXPECTED_ERROR = "An unexpected error occured while writing over NFC.";
 
 	/**
 	 * Binds the NFC controller to the given activity.

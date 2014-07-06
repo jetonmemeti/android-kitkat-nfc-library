@@ -135,15 +135,13 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 			length = reader.transmit(0, bytes, bytes.length, recvBuffer, recvBuffer.length);
 		} catch (ReaderException e) {
 			Log.d(TAG, "could not write message, ReaderException", e);
-			//TODO: change err msg
-			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, "ReaderException");
+			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, UNEXPECTED_ERROR);
 			return new NfcMessage(Type.EMPTY).sequenceNumber(input).error();
 		}
 
 		if (length <= 0) {
 			Log.d(TAG, "could not write message, return value is 0");
-			//TODO: change err msg
-			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, "return value is 0");
+			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, UNEXPECTED_ERROR);
 			return new NfcMessage(Type.EMPTY).sequenceNumber(input).error();
 		}
 
