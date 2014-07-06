@@ -26,8 +26,8 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import android.app.Activity;
 import android.util.Log;
-import ch.uzh.csg.nfclib.NfcMessage.Type;
 import ch.uzh.csg.nfclib.NfcInitiator.TagDiscoveredHandler;
+import ch.uzh.csg.nfclib.NfcMessage.Type;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(Log.class)
@@ -546,25 +546,24 @@ public class TransceiverTest {
 	}
 	
 	@Test
-	public void testTransceiveTimeout() throws IOException, IllegalArgumentException, InterruptedException, ExecutionException {
+	public void testTransceiveNoTimeout() throws IOException, IllegalArgumentException, InterruptedException, ExecutionException {
 		reset();
 
 		byte[] me1 = TestUtils.getRandomBytes(2000);
-		NfcInitiator transceiver = createTransceiver(me1, 24, 18, true, 400, false, -1);
+		NfcInitiator transceiver = createTransceiver(me1, 27, 34, true, 300, false, -1);
 		transceiver.initNfc();
 
 		byte[] me2 = TestUtils.getRandomBytes(3000);
 		Future<byte[]> ft = transceiver.transceive(me2);
 		ft.get();
 		
-		//TODO thomas: why are there two other events fired afterwards?
-		Thread.sleep(1500);
 		for (State s : states) {
 			System.err.println(s.event.name());
 		}
 		
-		assertEquals(3, states.size());
-		assertEquals(NfcEvent.Type.INIT_FAILED, states.get(2).event);
+		assertEquals(4, states.size());
+		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(3).event);
+		assertEquals(NfcEvent.Type.MESSAGE_RECEIVED, states.get(2).event);
 	}
 	
 	@Test
@@ -579,13 +578,15 @@ public class TransceiverTest {
 		Future<byte[]> ft = transceiver.transceive(me2);
 		ft.get();
 		
-		//TODO thomas: why are there two other events fired afterwards?
+		// if we sleep here, we will see two more events: INITIALIZED. This is
+		// due to onTagDiscovered, that this test will throw. So we'll
+		// initialize the library again.
 		Thread.sleep(1500);
 		for (State s : states) {
 			System.err.println(s.event.name());
 		}
 		
-		assertEquals(3, states.size());
+		assertEquals(5, states.size());
 		assertEquals(NfcEvent.Type.CONNECTION_LOST, states.get(2).event);
 	}
 	

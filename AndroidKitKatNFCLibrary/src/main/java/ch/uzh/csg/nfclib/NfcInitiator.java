@@ -220,7 +220,7 @@ public class NfcInitiator {
 				}
 				long start = System.currentTimeMillis();
 				NfcMessage response = transceiver.write(request1);
-				Log.e(TAG, "time to write: " + (System.currentTimeMillis() - start));
+				Log.d(TAG, "time to write: " + (System.currentTimeMillis() - start));
 				Log.d(TAG, "trans request: " + request1);
 				Log.d(TAG, "trans response: " + response);
 				// //--> here we can get an exception
@@ -237,13 +237,6 @@ public class NfcInitiator {
 				if (!cont) {
 					return;
 				}
-				//TODO: this catch block is obsolete, since never thrown!
-//			} catch (NfcLibException e) {
-//				done(null);
-//				eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, e);
-//				byteCallable.set(null);
-//				Log.e(TAG, "tranceive exception nfc", e);
-//				return;
 			} catch (IOException e) {
 				/*
 				 * This might occur due to a connection lost and can be followed
@@ -253,7 +246,13 @@ public class NfcInitiator {
 				 */
 				e.printStackTrace();
 				Log.e(TAG, "tranceive exception", e);
-
+				return;
+			} catch (Throwable t) {
+				// in any other case, make sure that we exit properly
+				done(null);
+				eventHandler.handleMessage(NfcEvent.Type.FATAL_ERROR, t);
+				byteCallable.set(null);
+				Log.e(TAG, "tranceive exception nfc", t);
 				return;
 			}
 		}
