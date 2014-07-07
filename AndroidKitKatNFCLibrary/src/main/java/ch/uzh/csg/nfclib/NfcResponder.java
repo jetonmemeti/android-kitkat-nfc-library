@@ -12,7 +12,6 @@ import android.nfc.cardemulation.HostApduService;
 import android.util.Log;
 import ch.uzh.csg.nfclib.events.INfcEventHandler;
 import ch.uzh.csg.nfclib.events.NfcEvent;
-import ch.uzh.csg.nfclib.hce.HostApduServiceNfcLib;
 import ch.uzh.csg.nfclib.messages.NfcMessage;
 import ch.uzh.csg.nfclib.messages.NfcMessageSplitter;
 import ch.uzh.csg.nfclib.messages.NfcMessage.Type;

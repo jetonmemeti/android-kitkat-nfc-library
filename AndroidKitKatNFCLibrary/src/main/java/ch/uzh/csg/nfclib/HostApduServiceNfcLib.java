@@ -1,8 +1,7 @@
-package ch.uzh.csg.nfclib.hce;
+package ch.uzh.csg.nfclib;
 
 import java.util.Arrays;
 
-import ch.uzh.csg.nfclib.NfcResponder;
 import ch.uzh.csg.nfclib.utils.Config;
 import android.nfc.cardemulation.HostApduService;
 import android.os.Bundle;
