@@ -338,8 +338,6 @@ public class NfcInitiator {
 					return;
 				}
 			} catch (IOException e) {
-				//TODO: this block is never executed
-				
 				/*
 				 * This might occur due to a connection lost and can be followed
 				 * by a nfc handshake to re-init the nfc connection. Therefore
@@ -381,8 +379,7 @@ public class NfcInitiator {
 		}
 
 		if (!validateSequence(request, response)) {
-			//TODO: err msg
-			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, "sequence error");
+			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, UNEXPECTED_ERROR);
 			return false;
 		}
 
