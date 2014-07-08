@@ -10,8 +10,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 
 import org.junit.After;
 import org.junit.Before;
@@ -44,13 +45,11 @@ public class TransceiverTest {
 	private static class State {
 		NfcEvent event;
 		private byte[] response = null;
-		@SuppressWarnings("unused")
-		private String nfcErrorMessage = null;
 	}
 
 	private List<State> states = new ArrayList<State>();
 
-	private INfcEventHandler eventHandler = new INfcEventHandler() {
+	private INfcEventHandler eventHandler1 = new INfcEventHandler() {
 		@Override
 		public synchronized void handleMessage(NfcEvent event, Object object) {
 			State state = new State();
@@ -60,8 +59,6 @@ public class TransceiverTest {
 				if (object != null) {
 					if (object instanceof Throwable) {
 						((Throwable) object).printStackTrace();
-					} else {
-						state.nfcErrorMessage = (String) object;
 					}
 				}
 				break;
@@ -74,6 +71,66 @@ public class TransceiverTest {
 				break;
 			}
 			states.add(state);
+		}
+	};
+	
+	private INfcEventHandler eventHandler2 = new INfcEventHandler() {
+		@Override
+		public synchronized void handleMessage(NfcEvent event, Object object) {
+			State state = new State();
+			state.event = event;
+			switch (event) {
+			case FATAL_ERROR:
+				if (object != null) {
+					if (object instanceof Throwable) {
+						((Throwable) object).printStackTrace();
+					}
+				}
+				break;
+			case MESSAGE_RECEIVED:
+				if (object != null && object instanceof byte[]) {
+					state.response = (byte[]) object;
+				}
+				break;
+			default:
+				break;
+			}
+			states.add(state);
+			if(event != NfcEvent.INITIALIZED) {
+				if (object != null && object instanceof byte[]) {
+					byteCallable.set((byte[]) object);
+				} else {
+					byteCallable.set(null);
+				}
+			}
+		}
+	};
+	
+	private ByteCallable byteCallable = null;
+	private FutureTask<byte[]> futureTask = null;
+	
+	private static class ByteCallable implements Callable<byte[]> {
+		private byte[] value;
+		private FutureTask<byte[]> futureTask;
+
+		public void set(byte[] value) {
+			synchronized (this) {
+				this.value = value;
+			}
+			futureTask.run();
+		}
+
+		public void future(FutureTask<byte[]> futureTask) {
+			synchronized (this) {
+				this.futureTask = futureTask;
+			}
+		}
+
+		@Override
+		public byte[] call() throws Exception {
+			synchronized (this) {
+				return value;
+			}
 		}
 	};
 
@@ -183,7 +240,7 @@ public class TransceiverTest {
 	}
 
 	public NfcInitiator createTransceiver(final byte[] payload, int limitRequest, int limitResponse, boolean process, int timeout, final boolean sendLaterr, final int sendLaterTimeout) {
-		final NfcResponder customHostApduService = new NfcResponder(eventHandler, new ITransceiveHandler() {
+		final NfcResponder customHostApduService = new NfcResponder(eventHandler1, new ITransceiveHandler() {
 
 	        @Override
 	        public byte[] handleMessage(byte[] message, final ISendLater sendLater) {
@@ -218,7 +275,7 @@ public class TransceiverTest {
 
 	public NfcInitiator createTransceiver(NfcResponder customHostApduService, int limitRequest, int limitResponse, boolean process, int timeout) {
 		MyNfcTransceiverImpl myNfcTransceiverImpl = new MyNfcTransceiverImpl(customHostApduService, limitRequest, limitResponse, process, timeout);
-		NfcInitiator nfc = new NfcInitiator(eventHandler, activity, userId, myNfcTransceiverImpl);
+		NfcInitiator nfc = new NfcInitiator(eventHandler2, activity, userId, myNfcTransceiverImpl);
 		myNfcTransceiverImpl.handler(nfc.tagDiscoveredHandler());
 		nfc.enable(null);
 		return nfc;
@@ -258,6 +315,13 @@ public class TransceiverTest {
 
 	private void reset() {
 		states.clear();
+		
+		if(byteCallable != null) {
+			byteCallable.set(null);
+		}
+		byteCallable = new ByteCallable();
+		futureTask = new FutureTask<byte[]>(byteCallable);
+		byteCallable.future(futureTask);
 	}
 
 	@Test
@@ -412,8 +476,8 @@ public class TransceiverTest {
 		transceiver.initNfc();
 
 		byte[] me2 = TestUtils.getRandomBytes(2);
-		Future<byte[]> ft = transceiver.transceive(me2);
-		ft.get();
+		transceiver.transceive(me2);
+		futureTask.get();
 		
 		assertEquals(4, states.size());
 		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(3).event);
@@ -432,8 +496,8 @@ public class TransceiverTest {
 		transceiver.initNfc();
 
 		byte[] me2 = TestUtils.getRandomBytes(3000);
-		Future<byte[]> ft = transceiver.transceive(me2);
-		ft.get();
+		transceiver.transceive(me2);
+		futureTask.get();
 
 		assertEquals(4, states.size());
 		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(3).event);
@@ -452,8 +516,8 @@ public class TransceiverTest {
 		transceiver.initNfc();
 
 		byte[] me2 = TestUtils.getRandomBytes(3000);
-		Future<byte[]> ft = transceiver.transceive(me2);
-		ft.get();
+		transceiver.transceive(me2);
+		futureTask.get();
 		
 		assertEquals(4, states.size());
 		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(3).event);
@@ -471,8 +535,8 @@ public class TransceiverTest {
 		transceiver.initNfc();
 
 		byte[] me2 = TestUtils.getRandomBytes(3000);
-		Future<byte[]> ft = transceiver.transceive(me2);
-		ft.get();
+		transceiver.transceive(me2);
+		futureTask.get();
 
 		assertEquals(4, states.size());
 		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(3).event);
@@ -497,8 +561,8 @@ public class TransceiverTest {
 		transceiver.initNfc();
 
 		byte[] me2 = TestUtils.getRandomBytes(3000);
-		Future<byte[]> ft = transceiver.transceive(me2);
-		ft.get();
+		transceiver.transceive(me2);
+		futureTask.get();
 		
 		assertEquals(4, states.size());
 		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(3).event);
@@ -508,8 +572,8 @@ public class TransceiverTest {
 
 		reset();
 		me2 = TestUtils.getRandomBytes(3001);
-		ft = transceiver.transceive(me2);
-		ft.get();
+		transceiver.transceive(me2);
+		futureTask.get();
 
 		assertEquals(2, states.size());
 		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(1).event);
@@ -527,8 +591,8 @@ public class TransceiverTest {
 		transceiver.initNfc();
 
 		byte[] me2 = TestUtils.getRandomBytes(3000);
-		Future<byte[]> ft = transceiver.transceive(me2);
-		ft.get();
+		transceiver.transceive(me2);
+		futureTask.get();
 		
 		assertEquals(4, states.size());
 		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(3).event);
@@ -538,8 +602,8 @@ public class TransceiverTest {
 
 		reset();
 		me2 = TestUtils.getRandomBytes(3000);
-		ft = transceiver.transceive(me2);
-		ft.get();
+		transceiver.transceive(me2);
+		futureTask.get();
 
 		assertEquals(2, states.size());
 		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(1).event);
@@ -559,8 +623,8 @@ public class TransceiverTest {
 		transceiver.initNfc();
 
 		byte[] me2 = TestUtils.getRandomBytes(3000);
-		Future<byte[]> ft = transceiver.transceive(me2);
-		ft.get();
+		transceiver.transceive(me2);
+		futureTask.get();
 		
 		assertEquals(4, states.size());
 		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(3).event);
@@ -576,8 +640,8 @@ public class TransceiverTest {
 		transceiver.initNfc();
 
 		byte[] me2 = TestUtils.getRandomBytes(3000);
-		Future<byte[]> ft = transceiver.transceive(me2);
-		ft.get();
+		transceiver.transceive(me2);
+		futureTask.get();
 		
 		// if we sleep here, we will see two more events: INITIALIZED. This is
 		// due to onTagDiscovered, that this test will throw. So we'll
@@ -597,8 +661,8 @@ public class TransceiverTest {
 		transceiver.initNfc();
 
 		byte[] me2 = TestUtils.getRandomBytes(3000);
-		Future<byte[]> ft = transceiver.transceive(me2);
-		ft.get();
+		transceiver.transceive(me2);
+		futureTask.get();
 		
 		assertEquals(4, states.size());
 		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(3).event);

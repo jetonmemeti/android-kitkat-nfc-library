@@ -3,12 +3,9 @@ package ch.uzh.csg.nfclib;
 import java.io.IOException;
 import java.util.Deque;
 import java.util.LinkedList;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 
 import android.app.Activity;
@@ -16,8 +13,8 @@ import android.util.Log;
 import ch.uzh.csg.nfclib.events.INfcEventHandler;
 import ch.uzh.csg.nfclib.events.NfcEvent;
 import ch.uzh.csg.nfclib.messages.NfcMessage;
-import ch.uzh.csg.nfclib.messages.NfcMessageSplitter;
 import ch.uzh.csg.nfclib.messages.NfcMessage.Type;
+import ch.uzh.csg.nfclib.messages.NfcMessageSplitter;
 import ch.uzh.csg.nfclib.transceiver.ExternalNfcTransceiver;
 import ch.uzh.csg.nfclib.transceiver.INfcTransceiver;
 import ch.uzh.csg.nfclib.transceiver.InternalNfcTransceiver;
@@ -70,7 +67,6 @@ public class NfcInitiator {
 	// if the task is null, it means either we did not start or we are done.
 	private ExecutorService executorService = null;
 	private TimeoutTask task;
-	private ByteCallable byteCallable;
 
 	/**
 	 * Instantiates a new object. Use this constructor, if you want to provide a
@@ -241,10 +237,8 @@ public class NfcInitiator {
 	private void initFailed(NfcEvent event) {
 		initDone = false;
 		eventHandler.handleMessage(event, null);
-		byteCallable.set(null);
 	}
 
-	// TODO: try to rethink future here
 	/**
 	 * Sends any byte message to the NFC communication partner and returns the
 	 * response. Enable has to be called first before transceiving any data.
@@ -265,7 +259,7 @@ public class NfcInitiator {
 	 * @throws IllegalArgumentException
 	 *             if bytes is null or empty
 	 */
-	public Future<byte[]> transceive(byte[] bytes) throws IllegalArgumentException {
+	public void transceive(byte[] bytes) throws IllegalArgumentException {
 		if (bytes == null || bytes.length == 0) {
 			throw new IllegalArgumentException(NULL_ARGUMENT);
 		}
@@ -277,10 +271,6 @@ public class NfcInitiator {
 		if (!initDone) {
 			throw new IllegalArgumentException("init not done");
 		}
-
-		byteCallable = new ByteCallable();
-		FutureTask<byte[]> futureTask = new FutureTask<byte[]>(byteCallable);
-		byteCallable.future(futureTask);
 
 		/*
 		 * hint the gc that now is a good time to cleanup. Its better to cleanup
@@ -298,7 +288,6 @@ public class NfcInitiator {
 			Log.d(TAG, "writing: " + bytes.length + " bytes, " + messageQueue.size() + " fragments");
 
 		transceiveLoop(false);
-		return futureTask;
 	}
 
 	private void transceiveLoop(boolean resume) {
@@ -338,8 +327,6 @@ public class NfcInitiator {
 					return;
 				}
 			} catch (IOException e) {
-				//TODO: this block is never executed
-				
 				/*
 				 * This might occur due to a connection lost and can be followed
 				 * by a nfc handshake to re-init the nfc connection. Therefore
@@ -354,7 +341,6 @@ public class NfcInitiator {
 				// in any other case, make sure that we exit properly
 				done(null);
 				eventHandler.handleMessage(NfcEvent.FATAL_ERROR, t);
-				byteCallable.set(null);
 				
 				if (Config.DEBUG)
 					Log.e(TAG, "tranceive exception nfc", t);
@@ -377,12 +363,15 @@ public class NfcInitiator {
 			if (Config.DEBUG)
 				Log.e(TAG, "sync exception " + request + " / " + request2);
 			
-			//TODO: what now? return false?
+			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, "request mismatch");
+			return false;
 		}
 
 		if (!validateSequence(request, response)) {
-			//TODO: err msg
-			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, "sequence error");
+			if (Config.DEBUG)
+				Log.e(TAG, "sequence error " + request + " / " + response);
+			
+			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, UNEXPECTED_ERROR);
 			return false;
 		}
 
@@ -400,7 +389,6 @@ public class NfcInitiator {
 		} else if (response.type() != Type.GET_NEXT_FRAGMENT) {
 			done(retVal);
 			eventHandler.handleMessage(NfcEvent.MESSAGE_RECEIVED, retVal);
-			byteCallable.set(retVal);
 			return false;
 		} else {
 			return true;
@@ -424,31 +412,6 @@ public class NfcInitiator {
 		}
 		return true;
 	}
-
-	private static class ByteCallable implements Callable<byte[]> {
-		private byte[] value;
-		private FutureTask<byte[]> futureTask;
-
-		public void set(byte[] value) {
-			synchronized (this) {
-				this.value = value;
-			}
-			futureTask.run();
-		}
-
-		public void future(FutureTask<byte[]> futureTask) {
-			synchronized (this) {
-				this.futureTask = futureTask;
-			}
-		}
-
-		@Override
-		public byte[] call() throws Exception {
-			synchronized (this) {
-				return value;
-			}
-		}
-	};
 
 	/**
 	 * This class initializes the {@link NfcInitiator} as soon as a NFC tag has
