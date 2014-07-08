@@ -340,7 +340,7 @@ public class NfcInitiator {
 			} catch (Throwable t) {
 				// in any other case, make sure that we exit properly
 				done();
-				eventHandler.handleMessage(NfcEvent.FATAL_ERROR, t);
+				eventHandler.handleMessage(NfcEvent.FATAL_ERROR, UNEXPECTED_ERROR);
 				
 				if (Config.DEBUG)
 					Log.e(TAG, "tranceive exception nfc", t);
@@ -363,7 +363,7 @@ public class NfcInitiator {
 			if (Config.DEBUG)
 				Log.e(TAG, "sync exception " + request + " / " + request2);
 			
-			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, "request mismatch");
+			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, UNEXPECTED_ERROR);
 			return false;
 		}
 

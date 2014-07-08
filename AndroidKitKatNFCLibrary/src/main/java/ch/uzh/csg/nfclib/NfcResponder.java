@@ -152,7 +152,7 @@ public class NfcResponder {
 					if (Config.DEBUG)
 						Log.e(TAG, "sequence number mismatch " + inputMessage.sequenceNumber() + " / " + (lastMessageReceived == null ? 0 : lastMessageReceived.sequenceNumber()));
 					
-					eventHandler.handleMessage(NfcEvent.FATAL_ERROR, inputMessage.toString());
+					eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcInitiator.UNEXPECTED_ERROR);
 					outputMessage = new NfcMessage(Type.EMPTY).error();
 					return prepareWrite(outputMessage, true);
 				}
@@ -250,7 +250,7 @@ public class NfcResponder {
 				if (Config.DEBUG)
 					Log.e(TAG, "nothing to return (get next fragment)");
 				
-				eventHandler.handleMessage(NfcEvent.FATAL_ERROR, null);
+				eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcInitiator.UNEXPECTED_ERROR);
 			}
 			return messageQueue.poll();
 		case POLLING:
@@ -280,7 +280,7 @@ public class NfcResponder {
 			if (Config.DEBUG)
 				Log.e(TAG, "nothing to return - message queue is empty");
 			
-			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, null);
+			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcInitiator.UNEXPECTED_ERROR);
 		}
 		return messageQueue.poll();
 	}
