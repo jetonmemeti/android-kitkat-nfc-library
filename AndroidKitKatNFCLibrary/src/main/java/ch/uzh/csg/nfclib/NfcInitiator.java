@@ -339,7 +339,7 @@ public class NfcInitiator {
 				return;
 			} catch (Throwable t) {
 				// in any other case, make sure that we exit properly
-				done(null);
+				done();
 				eventHandler.handleMessage(NfcEvent.FATAL_ERROR, t);
 				
 				if (Config.DEBUG)
@@ -370,7 +370,7 @@ public class NfcInitiator {
 		if (!validateSequence(request, response)) {
 			if (Config.DEBUG)
 				Log.e(TAG, "sequence error " + request + " / " + response);
-			
+
 			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, UNEXPECTED_ERROR);
 			return false;
 		}
@@ -387,7 +387,7 @@ public class NfcInitiator {
 			messageQueue.offer(toSend);
 			return true;
 		} else if (response.type() != Type.GET_NEXT_FRAGMENT) {
-			done(retVal);
+			done();
 			eventHandler.handleMessage(NfcEvent.MESSAGE_RECEIVED, retVal);
 			return false;
 		} else {
@@ -395,7 +395,7 @@ public class NfcInitiator {
 		}
 	}
 
-	private void done(byte[] retVal) {
+	private void done() {
 		// we are done
 		task.shutdown();
 		messageSplitter.clear();
@@ -460,7 +460,7 @@ public class NfcInitiator {
 							Log.d(TAG, "connection lost, idle: " + idle);
 						
 						latch.countDown();
-						done(null);
+						done();
 						initFailed(NfcEvent.CONNECTION_LOST);
 						return;
 					} else {
