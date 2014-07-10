@@ -42,7 +42,7 @@ public class NfcMessage {
 
 	// messages, uses 3 bits at most
 	public enum Type {
-		EMPTY, DEFAULT, AID_SELECTED, GET_NEXT_FRAGMENT, USER_ID, READ_BINARY, POLLING, UNUSED;
+		DEFAULT, ERROR, AID_SELECTED, GET_NEXT_FRAGMENT, USER_ID, READ_BINARY, POLLING, UNUSED;
 	}
 
 	// flags
@@ -50,7 +50,7 @@ public class NfcMessage {
 	public static final byte REQUEST = 0x10; // 16
 	public static final byte START_PROTOCOL = 0x20; // 32
 	public static final byte HAS_MORE_FRAGMENTS = 0x40; // 64
-	public static final byte ERROR = (byte) 0x80; // -128
+	public static final byte UNUSED = (byte) 0x80; // -128
 
 	// data
 	private int header = 0;
@@ -236,27 +236,10 @@ public class NfcMessage {
 	}
 
 	/**
-	 * Returns true if the error flag of this message is set, false otherwise.
+	 * Returns true if the type of this message is error.
 	 */
 	public boolean isError() {
-		return (header & ERROR) != 0;
-	}
-
-	private NfcMessage error(boolean error) {
-		if (error) {
-			header = header | ERROR;
-		} else {
-			header = header & ~ERROR;
-		}
-		return this;
-	}
-
-	/**
-	 * Sets the error flag of this message and returns it.
-	 */
-	public NfcMessage error() {
-		error(true);
-		return this;
+		return type() == Type.ERROR;
 	}
 
 	/**

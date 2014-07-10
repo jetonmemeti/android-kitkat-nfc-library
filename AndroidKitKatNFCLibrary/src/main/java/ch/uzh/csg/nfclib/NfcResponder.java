@@ -153,7 +153,7 @@ public class NfcResponder {
 						Log.e(TAG, "sequence number mismatch " + inputMessage.sequenceNumber() + " / " + (lastMessageReceived == null ? 0 : lastMessageReceived.sequenceNumber()));
 					
 					eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcInitiator.UNEXPECTED_ERROR);
-					outputMessage = new NfcMessage(Type.EMPTY).error();
+					outputMessage = new NfcMessage(Type.ERROR);
 					return prepareWrite(outputMessage, true);
 				}
 				if (!check && repeat) {
@@ -261,7 +261,7 @@ public class NfcResponder {
 				return new NfcMessage(Type.POLLING).request();
 			}
 		default:
-			return new NfcMessage(Type.DEFAULT).error();
+			return new NfcMessage(Type.ERROR);
 		}
 	}
 

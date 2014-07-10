@@ -151,7 +151,7 @@ public class InternalNfcTransceiver implements ReaderCallback, INfcTransceiver {
 				Log.d(TAG, "could not write message, isodep is not enabled");
 			
 			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
-			return new NfcMessage(Type.EMPTY).sequenceNumber(input).error();
+			return new NfcMessage(Type.ERROR).sequenceNumber(input);
 		}
 
 		if (!isoDep.isConnected()) {
@@ -159,7 +159,7 @@ public class InternalNfcTransceiver implements ReaderCallback, INfcTransceiver {
 				Log.d(TAG, "could not write message, isodep is not or no longer connected");
 			
 			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
-			return new NfcMessage(Type.EMPTY).sequenceNumber(input).error();
+			return new NfcMessage(Type.ERROR).sequenceNumber(input);
 		}
 
 		byte[] bytes = input.bytes();

@@ -343,7 +343,7 @@ public class TransceiverTest {
 
 		NfcResponder c = mock(NfcResponder.class);
 		// return error after first message
-		when(c.processIncomingData(any(byte[].class))).thenReturn(new NfcMessage(Type.DEFAULT).error().bytes());
+		when(c.processIncomingData(any(byte[].class))).thenReturn(new NfcMessage(Type.ERROR).bytes());
 		NfcInitiator transceiver = createTransceiver(c);
 		transceiver.initNfc();
 

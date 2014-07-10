@@ -121,7 +121,7 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 				Log.d(TAG, "could not write message, reader is not enabled");
 			
 			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
-			return new NfcMessage(Type.EMPTY).sequenceNumber(input).error();
+			return new NfcMessage(Type.ERROR).sequenceNumber(input);
 		}
 
 		if (reader.isOpened()) {
@@ -129,7 +129,7 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 				Log.d(TAG, "could not write message, reader is not or no longe open");
 			
 			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NFCTRANSCEIVER_NOT_CONNECTED);
-			return new NfcMessage(Type.EMPTY).sequenceNumber(input).error();
+			return new NfcMessage(Type.ERROR).sequenceNumber(input);
 		}
 
 		final byte[] bytes = input.bytes();
@@ -146,7 +146,7 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 				Log.e(TAG, "could not write message - ReaderException", e);
 			
 			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, UNEXPECTED_ERROR);
-			return new NfcMessage(Type.EMPTY).sequenceNumber(input).error();
+			return new NfcMessage(Type.ERROR).sequenceNumber(input);
 		}
 
 		if (length <= 0) {
@@ -154,7 +154,7 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 				Log.d(TAG, "could not write message - return value is 0");
 			
 			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, UNEXPECTED_ERROR);
-			return new NfcMessage(Type.EMPTY).sequenceNumber(input).error();
+			return new NfcMessage(Type.ERROR).sequenceNumber(input);
 		}
 
 		byte[] result = new byte[length];
