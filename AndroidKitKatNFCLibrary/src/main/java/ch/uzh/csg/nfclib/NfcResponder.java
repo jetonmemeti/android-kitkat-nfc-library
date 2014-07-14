@@ -114,8 +114,17 @@ public class NfcResponder {
 			Log.d(TAG, "processCommandApdu with " + Arrays.toString(bytes));
 		
 		NfcMessage inputMessage = new NfcMessage(bytes);
-
 		NfcMessage outputMessage = null;
+		
+		if (inputMessage.version() > NfcMessage.getSupportedVersion()) {
+			if (Config.DEBUG)
+				Log.d(TAG, "excepted NfcMessage version "+NfcMessage.getSupportedVersion()+" but was "+inputMessage.version());
+			
+			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcInitiator.INCOMPATIBLE_VERSIONS);
+			
+			outputMessage = new NfcMessage(Type.ERROR);
+			return prepareWrite(outputMessage, true);
+		}
 
 		if (inputMessage.isSelectAidApdu()) {
 			/*
