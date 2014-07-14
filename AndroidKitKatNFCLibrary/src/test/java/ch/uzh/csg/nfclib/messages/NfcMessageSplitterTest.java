@@ -1,4 +1,4 @@
-package ch.uzh.csg.nfclib;
+package ch.uzh.csg.nfclib.messages;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
