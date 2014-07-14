@@ -48,9 +48,11 @@ public class NfcMessage {
 	// flags
 	public static final byte RESUME = 0x08; // 8
 	public static final byte REQUEST = 0x10; // 16
+	//TODO: remove start protocol
 	public static final byte START_PROTOCOL = 0x20; // 32
 	public static final byte HAS_MORE_FRAGMENTS = 0x40; // 64
 	public static final byte UNUSED = (byte) 0x80; // -128
+	//TODO: add 2bit version number
 
 	// data
 	private int header = 0;
