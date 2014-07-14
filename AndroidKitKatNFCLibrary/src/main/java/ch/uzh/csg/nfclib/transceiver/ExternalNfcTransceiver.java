@@ -55,7 +55,6 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 	private final TagDiscoveredHandler nfcInit;
 
 	private Reader reader;
-	private int maxLen;
 
 	/**
 	 * Creates a new instance.
@@ -124,7 +123,7 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 			return new NfcMessage(Type.ERROR).sequenceNumber(input);
 		}
 
-		if (reader.isOpened()) {
+		if (!reader.isOpened()) {
 			if (Config.DEBUG)
 				Log.d(TAG, "could not write message, reader is not or no longe open");
 			
@@ -133,8 +132,8 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 		}
 
 		final byte[] bytes = input.bytes();
-		if (bytes.length > maxLen) {
-			throw new IllegalArgumentException("The message length exceeds the maximum capacity of " + maxLen + " bytes.");
+		if (bytes.length > MAX_WRITE_LENGTH) {
+			throw new IllegalArgumentException("The message length exceeds the maximum capacity of " + MAX_WRITE_LENGTH + " bytes.");
 		}
 
 		final byte[] recvBuffer = new byte[MAX_WRITE_LENGTH];
