@@ -17,6 +17,13 @@ import java.util.Arrays;
  * 
  */
 public class NfcMessage {
+	
+	/*
+	 * The number of the first version is 0. Future versions might be 1, 2, or
+	 * 3. Afterwards, a new byte has to be allocated for to contain the version
+	 * number.
+	 */
+	private static final int VERSION = 0;
 
 	/*
 	 * When a remote NFC device wants to talk to your service, it sends a
@@ -46,13 +53,10 @@ public class NfcMessage {
 	}
 
 	// flags
-	public static final byte RESUME = 0x08; // 8
-	public static final byte REQUEST = 0x10; // 16
-	//TODO: 0x20 // 24
-	public static final byte HAS_MORE_FRAGMENTS = 0x40; // 64
-	public static final byte UNUSED = (byte) 0x80; // -128
-	//TODO: add 2bit version number
-
+	public static final byte RESUME = 0x20;
+	public static final byte REQUEST = 0x40;
+	public static final byte HAS_MORE_FRAGMENTS = (byte) 0x80;
+	
 	// data
 	private int header = 0;
 	private int sequenceNumber = 0;
@@ -77,9 +81,11 @@ public class NfcMessage {
 			 * EXTRA_READER_PRESENCE_CHECK_DELAY option.
 			 */
 			header = Type.READ_BINARY.ordinal();
+			header = header | (VERSION << 3);
 		} else if (input[0] == CLA_INS_P1_P2[0] && input[1] == CLA_INS_P1_P2[1]) {
 			// we got the initial handshake
 			header = Type.AID_SELECTED.ordinal();
+			header = header | (VERSION << 3);
 		} else {
 			// this is now a custom message
 			header = input[0];
@@ -101,6 +107,7 @@ public class NfcMessage {
 	 */
 	public NfcMessage(Type messageType) {
 		header = messageType.ordinal();
+		header = header | (VERSION << 3);
 	}
 
 	/**
@@ -110,7 +117,23 @@ public class NfcMessage {
 		// type is encoded in the last 3 bits
 		return Type.values()[header & 0x7];
 	}
-
+	
+	/**
+	 * Returns the version of this message.
+	 */
+	public int version() {
+		return (header >>> 3) & 0x03;
+	}
+	
+	/**
+	 * Returns the highest supported version of Nfc Messages. If version()
+	 * returns an higher version that this method, we cannot process that
+	 * message.
+	 */
+	public static int getSupportedVersion() {
+		return VERSION;
+	}
+	
 	/**
 	 * Sets the payload of this message and returns it.
 	 * 
