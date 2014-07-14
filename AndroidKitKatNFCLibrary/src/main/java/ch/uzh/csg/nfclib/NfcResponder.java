@@ -222,7 +222,7 @@ public class NfcResponder {
 				lastMessageReceived = null;
 				eventHandler.handleMessage(NfcEvent.INITIALIZED, Long.valueOf(userIdReceived));
 				resetStates();
-				return new NfcMessage(Type.USER_ID).startProtocol();
+				return new NfcMessage(Type.USER_ID);
 			}
 		case DEFAULT:
 			if (hasMoreFragments) {
