@@ -194,6 +194,7 @@ public class NfcResponder {
 	}
 
 	private void resetStates() {
+		data = null;
 		messageSplitter.clear();
 		messageQueue.clear();
 	}
