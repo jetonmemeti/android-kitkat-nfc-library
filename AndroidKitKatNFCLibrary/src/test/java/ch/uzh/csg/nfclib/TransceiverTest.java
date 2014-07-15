@@ -1,6 +1,7 @@
 package ch.uzh.csg.nfclib;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -59,6 +60,8 @@ public class TransceiverTest {
 				if (object != null) {
 					if (object instanceof Throwable) {
 						((Throwable) object).printStackTrace();
+					} else if (object instanceof String) {
+						state.response = ((String) object).getBytes();
 					}
 				}
 				break;
@@ -84,6 +87,8 @@ public class TransceiverTest {
 				if (object != null) {
 					if (object instanceof Throwable) {
 						((Throwable) object).printStackTrace();
+					} else if (object instanceof String) {
+						state.response = ((String) object).getBytes();
 					}
 				}
 				break;
@@ -300,8 +305,8 @@ public class TransceiverTest {
 	public void before() {
 		PowerMockito.mockStatic(Log.class);
 		PowerMockito.when(Log.d(Mockito.anyString(), Mockito.anyString())).then(answerd);
-		PowerMockito.when(Log.e(Mockito.anyString(), Mockito.anyString())).then(answere);
 		PowerMockito.when(Log.w(Mockito.anyString(), Mockito.anyString())).then(answerd);
+		PowerMockito.when(Log.e(Mockito.anyString(), Mockito.anyString())).then(answere);
 		PowerMockito.when(Log.e(Mockito.anyString(), Mockito.anyString(), Mockito.any(Throwable.class))).then(answere);
 	}
 	
@@ -669,6 +674,66 @@ public class TransceiverTest {
 		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(2).event);
 		assertTrue(Arrays.equals(me2, states.get(2).response));
 		assertTrue(Arrays.equals(me1, states.get(3).response));
+	}
+	
+	@Test
+	public void testTransceive_IllegalVersion_Responder() throws IOException, InterruptedException, NfcLibException, ExecutionException {
+		/*
+		 * Test when the NfcResponder returns a NfcMessage with an illegal
+		 * version
+		 */
+		reset();
+
+		// the NfcMessage with the invalid sequence number
+		byte header = (byte) 0x18; // 00011000
+		byte sqNr = 0x01;
+		NfcMessage m2 = new NfcMessage(new byte[] { header, sqNr });
+		
+		NfcResponder c = mock(NfcResponder.class);
+		when(c.processIncomingData(any(byte[].class)))
+			.thenReturn(new NfcMessage(Type.AID_SELECTED).response().bytes())
+			.thenReturn(new NfcMessage(Type.USER_ID).bytes())
+			.thenReturn(m2.bytes());
+		
+		NfcInitiator transceiver = createTransceiver(c);
+		transceiver.initNfc();
+		
+		byte[] msg = TestUtils.getRandomBytes(10);
+		transceiver.transceive(msg);
+		futureTask.get();
+
+		assertEquals(2, states.size());
+		assertEquals(NfcEvent.INITIALIZED, states.get(0).event);
+		assertEquals(NfcEvent.FATAL_ERROR, states.get(1).event);
+		assertNotNull(states.get(1).response);
+		assertEquals(NfcInitiator.INCOMPATIBLE_VERSIONS, new String(states.get(1).response));
+	}
+	
+	@Test
+	public void testTransceive_IllegalVersion_Initiator() throws IOException, InterruptedException, NfcLibException, ExecutionException {
+		/*
+		 * Test when the NfcInitiator sends a NfcMessage with an illegal version
+		 */
+		reset();
+
+		// the NfcMessage with the invalid sequence number
+		byte header = (byte) 0x18; // 00011000
+		byte sqNr = 0x01;
+		NfcMessage m2 = new NfcMessage(new byte[] { header, sqNr });
+		
+		NfcResponder responder = new NfcResponder(eventHandler1, null);
+		byte[] response = responder.processIncomingData(m2.bytes());
+		
+		assertEquals(1, states.size());
+		assertEquals(NfcEvent.FATAL_ERROR, states.get(0).event);
+		assertNotNull(states.get(0).response);
+		assertEquals(NfcInitiator.INCOMPATIBLE_VERSIONS, new String(states.get(0).response));
+		
+		assertNotNull(response);
+		NfcMessage msg = new NfcMessage(response);
+		assertTrue(msg.isError());
+		assertNotNull(msg.payload());
+		assertEquals(NfcInitiator.INCOMPATIBLE_VERSIONS, new String((byte[]) msg.payload()));
 	}
 	
 }

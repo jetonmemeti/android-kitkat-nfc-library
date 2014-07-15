@@ -122,7 +122,8 @@ public class NfcResponder {
 			
 			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcInitiator.INCOMPATIBLE_VERSIONS);
 			
-			outputMessage = new NfcMessage(Type.ERROR);
+			//TODO: send the complete string??
+			outputMessage = new NfcMessage(Type.ERROR).payload(NfcInitiator.INCOMPATIBLE_VERSIONS.getBytes());
 			return prepareWrite(outputMessage, true);
 		}
 
