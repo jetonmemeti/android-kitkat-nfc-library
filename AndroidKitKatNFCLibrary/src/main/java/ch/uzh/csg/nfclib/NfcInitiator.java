@@ -46,9 +46,7 @@ import ch.uzh.csg.nfclib.utils.Utils;
 public class NfcInitiator {
 	private static final String TAG = "ch.uzh.csg.nfclib.NfcInitiator";
 	
-	//TODO: delete one of these two
 	public static final int CONNECTION_TIMEOUT = 500;
-	public static final int SESSION_RESUME_THRESHOLD = 500;
 	public static final String NULL_ARGUMENT = "The message is null";
 	public static final String NFCTRANSCEIVER_NOT_CONNECTED = "Could not write message, NfcTransceiver is not connected.";
 	public static final String UNEXPECTED_ERROR = "An error occured while transceiving the message.";

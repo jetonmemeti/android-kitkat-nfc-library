@@ -219,7 +219,7 @@ public class NfcResponder {
 			int maxFragLen = Utils.byteArrayToInt(incoming.payload(), 8);
 			
 			messageSplitter.maxTransceiveLength(maxFragLen);
-			if (incoming.isResume() && newUserId == userIdReceived && (System.currentTimeMillis() - timeInitMessageReceived < NfcInitiator.SESSION_RESUME_THRESHOLD)) {
+			if (incoming.isResume() && newUserId == userIdReceived && (System.currentTimeMillis() - timeInitMessageReceived < NfcInitiator.CONNECTION_TIMEOUT)) {
 				if (Config.DEBUG)
 					Log.d(TAG, "resume");
 				
@@ -330,14 +330,14 @@ public class NfcResponder {
 		@Override
 		public void run() {
 			try {
-				long waitTime = NfcInitiator.SESSION_RESUME_THRESHOLD;
+				long waitTime = NfcInitiator.CONNECTION_TIMEOUT;
 				while (!latch.await(waitTime, TimeUnit.MILLISECONDS)) {
 					final long now = System.currentTimeMillis();
 					final long idle;
 					synchronized (this) {
 						idle = now - lastAcitivity;
 					}
-					if (idle > NfcInitiator.SESSION_RESUME_THRESHOLD) {
+					if (idle > NfcInitiator.CONNECTION_TIMEOUT) {
 						if (Config.DEBUG)
 							Log.e(TAG, "connection lost, idle: " + idle);
 						
@@ -345,7 +345,7 @@ public class NfcResponder {
 						eventHandler.handleMessage(NfcEvent.CONNECTION_LOST, null);
 						return;
 					} else {
-						waitTime = NfcInitiator.SESSION_RESUME_THRESHOLD - idle;
+						waitTime = NfcInitiator.CONNECTION_TIMEOUT - idle;
 					}
 				}
 
