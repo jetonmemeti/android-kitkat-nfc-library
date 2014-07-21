@@ -685,28 +685,22 @@ public class TransceiverTest {
 		reset();
 
 		// the NfcMessage with the invalid sequence number
-		byte header = (byte) 0x18; // 00011000
+		byte header = (byte) 0x1C; // 00011100 (Type == USER_ID)
 		byte sqNr = 0x01;
 		NfcMessage m2 = new NfcMessage(new byte[] { header, sqNr });
 		
 		NfcResponder c = mock(NfcResponder.class);
 		when(c.processIncomingData(any(byte[].class)))
 			.thenReturn(new NfcMessage(Type.AID_SELECTED).response().bytes())
-			.thenReturn(new NfcMessage(Type.USER_ID).bytes())
 			.thenReturn(m2.bytes());
 		
 		NfcInitiator transceiver = createTransceiver(c);
 		transceiver.initNfc();
 		
-		byte[] msg = TestUtils.getRandomBytes(10);
-		transceiver.transceive(msg);
-		futureTask.get();
-
-		assertEquals(2, states.size());
-		assertEquals(NfcEvent.INITIALIZED, states.get(0).event);
-		assertEquals(NfcEvent.FATAL_ERROR, states.get(1).event);
-		assertNotNull(states.get(1).response);
-		assertEquals(NfcInitiator.INCOMPATIBLE_VERSIONS, new String(states.get(1).response));
+		assertEquals(1, states.size());
+		assertEquals(NfcEvent.FATAL_ERROR, states.get(0).event);
+		assertNotNull(states.get(0).response);
+		assertEquals(NfcInitiator.INCOMPATIBLE_VERSIONS, new String(states.get(0).response));
 	}
 	
 	@Test
@@ -717,7 +711,7 @@ public class TransceiverTest {
 		reset();
 
 		// the NfcMessage with the invalid sequence number
-		byte header = (byte) 0x18; // 00011000
+		byte header = (byte) 0x1C; // 00011100 (Type == USER_ID)
 		byte sqNr = 0x01;
 		NfcMessage m2 = new NfcMessage(new byte[] { header, sqNr });
 		

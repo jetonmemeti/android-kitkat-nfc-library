@@ -116,17 +116,6 @@ public class NfcResponder {
 		NfcMessage inputMessage = new NfcMessage(bytes);
 		NfcMessage outputMessage = null;
 		
-		if (inputMessage.version() > NfcMessage.getSupportedVersion()) {
-			if (Config.DEBUG)
-				Log.d(TAG, "excepted NfcMessage version "+NfcMessage.getSupportedVersion()+" but was "+inputMessage.version());
-			
-			eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcInitiator.INCOMPATIBLE_VERSIONS);
-			
-			//TODO: send the complete string??
-			outputMessage = new NfcMessage(Type.ERROR).payload(NfcInitiator.INCOMPATIBLE_VERSIONS.getBytes());
-			return prepareWrite(outputMessage, true);
-		}
-
 		if (inputMessage.isSelectAidApdu()) {
 			/*
 			 * The size of the returned message is specified in NfcTransceiver
@@ -144,7 +133,7 @@ public class NfcResponder {
 				Log.d(TAG, "keep alive message");
 			
 			outputMessage = new NfcMessage(Type.READ_BINARY);
-			// no sequence number in handshake
+			// no sequence number in here
 			return outputMessage.bytes();
 		} else {
 			if (Config.DEBUG)
@@ -153,11 +142,22 @@ public class NfcResponder {
 			// check sequence if we are not a user_id message. As this message
 			// resets the sequence numbers
 			boolean isUserMessage = inputMessage.type() == Type.USER_ID;
-			if (!isUserMessage) {
+			if (isUserMessage) {
+				if (inputMessage.version() > NfcMessage.getSupportedVersion()) {
+					if (Config.DEBUG)
+						Log.d(TAG, "excepted NfcMessage version "+NfcMessage.getSupportedVersion()+" but was "+inputMessage.version());
+					
+					eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcInitiator.INCOMPATIBLE_VERSIONS);
+					
+					//TODO: send the complete string??
+					outputMessage = new NfcMessage(Type.ERROR).payload(NfcInitiator.INCOMPATIBLE_VERSIONS.getBytes());
+					return prepareWrite(outputMessage, true);
+				}
+			} else {
 				boolean check = inputMessage.check(lastMessageReceived);
 				boolean repeat = inputMessage.repeatLast(lastMessageReceived);
 				lastMessageReceived = inputMessage;
-
+				
 				if (!check && !repeat) {
 					if (Config.DEBUG)
 						Log.e(TAG, "sequence number mismatch " + inputMessage.sequenceNumber() + " / " + (lastMessageReceived == null ? 0 : lastMessageReceived.sequenceNumber()));

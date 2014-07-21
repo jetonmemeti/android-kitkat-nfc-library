@@ -3,7 +3,8 @@ package ch.uzh.csg.nfclib.utils;
 /**
  * This class contains settings for the nfc library.
  * 
- * @author Jeton
+ * @author Jeton Memeti
+ * @author Thomas Bocek
  *
  */
 public class Config {

@@ -46,6 +46,7 @@ import ch.uzh.csg.nfclib.utils.Utils;
 public class NfcInitiator {
 	private static final String TAG = "ch.uzh.csg.nfclib.NfcInitiator";
 	
+	//TODO: delete one of these two
 	public static final int CONNECTION_TIMEOUT = 500;
 	public static final int SESSION_RESUME_THRESHOLD = 500;
 	public static final String NULL_ARGUMENT = "The message is null";
@@ -178,6 +179,14 @@ public class NfcInitiator {
 			// no sequence number here, as this is a special message
 			NfcMessage response = transceiver.write(initMessage);
 			// --> here we can get an exception
+			if (!response.isSelectAidApdu()) {
+				if (Config.DEBUG)
+					Log.e(TAG, "handshake unexpected: " + response);
+				
+				eventHandler.handleMessage(NfcEvent.INIT_FAILED, null);
+				return;
+			}
+
 			if (response.version() > NfcMessage.getSupportedVersion()) {
 				if (Config.DEBUG)
 					Log.d(TAG, "excepted NfcMessage version "+NfcMessage.getSupportedVersion()+" but was "+response.version());
@@ -185,15 +194,7 @@ public class NfcInitiator {
 				eventHandler.handleMessage(NfcEvent.FATAL_ERROR, INCOMPATIBLE_VERSIONS);
 				return;
 			}
-
-			if (!response.isSelectAidApdu()) {
-				if (Config.DEBUG)
-					Log.e(TAG, "handshake unexpecetd: " + response);
-				
-				eventHandler.handleMessage(NfcEvent.INIT_FAILED, null);
-				return;
-			}
-
+			
 			byte[] sendUserId = Utils.longToByteArray(userId);
 			byte[] sendFragLen = Utils.intToByteArray(transceiver.maxLen());
 			byte[] merged = Utils.merge(sendUserId, sendFragLen);
@@ -202,6 +203,7 @@ public class NfcInitiator {
 			// no sequence number, this is considered as part of the handshake
 			NfcMessage responseUserId = transceiver.write(msg);
 			// --> here we can get an exception
+			
 			if (responseUserId.version() > NfcMessage.getSupportedVersion()) {
 				if (Config.DEBUG)
 					Log.d(TAG, "excepted NfcMessage version "+NfcMessage.getSupportedVersion()+" but was "+responseUserId.version());
@@ -329,14 +331,6 @@ public class NfcInitiator {
 					// it, but the reply did not arrive. Response will only be
 					// null when debugging. In reality, we need a timeout
 					// handler.
-					return;
-				}
-				
-				if (response.version() > NfcMessage.getSupportedVersion()) {
-					if (Config.DEBUG)
-						Log.d(TAG, "excepted NfcMessage version "+NfcMessage.getSupportedVersion()+" but was "+response.version());
-					
-					eventHandler.handleMessage(NfcEvent.FATAL_ERROR, INCOMPATIBLE_VERSIONS);
 					return;
 				}
 				
