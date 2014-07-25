@@ -16,14 +16,14 @@
 			<scope>test</scope>
 		</dependency>
 		
-		<!-- Download the following zip http://www.acs.com.hk/download-driver/2989/ACS-Unified-LIB-Android-111-P.zip 
-			\ Install the acssmc-1.1.1.jar jar to your local maven repo: mvn install:install-file 
-			-Dfile=libs/acssmc-1.1.1.jar -DgroupId=com.acs.smartcard -DartifactId=acssmc 
-			-Dversion=1.1.1 -Dpackaging=jar -->
+		<!-- Download the following zip http://www.acs.com.hk/download-driver-unified/5102/ACS-LIB-Android-112-A.zip
+			\ Install the acssmc-1.1.2.jar jar to your local maven repo: mvn install:install-file 
+			-Dfile=libs/acssmc-1.1.2.jar -DgroupId=com.acs.smartcard -DartifactId=acssmc 
+			-Dversion=1.1.2 -Dpackaging=jar -->
 		<dependency>
 			<groupId>com.acs.smartcard</groupId>
 			<artifactId>acssmc</artifactId>
-			<version>1.1.1</version>
+			<version>1.1.2</version>
 		</dependency>
 
 		<!-- Power Mock -->
