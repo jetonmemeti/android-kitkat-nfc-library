@@ -68,7 +68,7 @@ public class InternalNfcTransceiver implements ReaderCallback, INfcTransceiver {
 	}
 
 	@Override
-	public void enable(Activity activity) throws NfcLibException {
+	public void turnOn(Activity activity) throws NfcLibException {
 		nfcAdapter = android.nfc.NfcAdapter.getDefaultAdapter(activity);
 		if (nfcAdapter == null) {
 			throw new NfcLibException("NFC Adapter is null");
@@ -92,11 +92,12 @@ public class InternalNfcTransceiver implements ReaderCallback, INfcTransceiver {
 		//options.putInt(NfcAdapter.EXTRA_READER_PRESENCE_CHECK_DELAY, 5000);
 
 		nfcAdapter.enableReaderMode(activity, this, NfcAdapter.FLAG_READER_NFC_A | NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK, options);
-		enabled = true;
 	}
 
 	@Override
-	public void disable(Activity activity) {
+	public void turnOff(Activity activity) {
+		disable();
+		
 		if (isoDep != null && isoDep.isConnected()) {
 			try {
 				isoDep.close();
@@ -105,20 +106,27 @@ public class InternalNfcTransceiver implements ReaderCallback, INfcTransceiver {
 					Log.d(TAG, "could not close isodep", e);
 			}
 		}
-		if (nfcAdapter != null && enabled) {
+		
+		if (nfcAdapter != null) {
 			nfcAdapter.disableReaderMode(activity);
 		}
+	}
+
+	@Override
+	public void enable() {
+		enabled = true;
+	}
+
+	@Override
+	public void disable() {
 		enabled = false;
 	}
 
 	@Override
 	public boolean isEnabled() {
-		if (nfcAdapter == null) {
+		if (nfcAdapter == null)
 			return false;
-		}
-		if (!enabled) {
-			return false;
-		}
+		
 		return nfcAdapter.isEnabled();
 	}
 
@@ -126,6 +134,13 @@ public class InternalNfcTransceiver implements ReaderCallback, INfcTransceiver {
 	public void onTagDiscovered(Tag tag) {
 		if (Config.DEBUG)
 			Log.d(TAG, "tag discovered: " + tag);
+		
+		if (!enabled) {
+			if (Config.DEBUG)
+				Log.d(TAG, "tag discovered, but InternalNfcTransceiver not enabled");
+			
+			return;
+		}
 		
 		isoDep = IsoDep.get(tag);
 		try {

@@ -226,12 +226,21 @@ public class TransceiverTest {
 		}
 
 		@Override
-		public void enable(Activity activity) throws NfcLibException {
+		public void turnOn(Activity activity) throws NfcLibException {
+		}
+
+		@Override
+		public void turnOff(Activity activity) {
+			disable();
+		}
+
+		@Override
+		public void enable() {
 			enabled = true;
 		}
 
 		@Override
-		public void disable(Activity activity) {
+		public void disable() {
 			enabled = false;
 		}
 	};

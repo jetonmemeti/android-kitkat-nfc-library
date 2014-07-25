@@ -55,6 +55,11 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 	private final TagDiscoveredHandler nfcInit;
 
 	private Reader reader;
+	/*
+	 * not sure if this is called from different threads. Make it volatile just
+	 * in case.
+	 */
+	private volatile boolean enabled = false;
 
 	/**
 	 * Creates a new instance.
@@ -71,7 +76,7 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 	}
 
 	@Override
-	public void enable(Activity activity) throws NfcLibException {
+	public void turnOn(Activity activity) throws NfcLibException {
 		UsbManager manager = (UsbManager) activity.getSystemService(Context.USB_SERVICE);
 		reader = new Reader(manager);
 
@@ -92,20 +97,30 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 	}
 
 	@Override
-	public void disable(Activity activity) {
-		activity.unregisterReceiver(broadcastReceiver);
+	public void turnOff(Activity activity) {
+		disable();
 		if (reader != null && reader.isOpened()) {
 			reader.close();
 		}
+		activity.unregisterReceiver(broadcastReceiver);
+	}
+
+	@Override
+	public void enable() {
+		enabled = true;
+	}
+
+	@Override
+	public void disable() {
+		enabled = false;
 	}
 
 	@Override
 	public boolean isEnabled() {
-		if (reader == null) {
+		if (reader == null)
 			return false;
-		} else {
-			return reader.isOpened();
-		}
+		
+		return reader.isOpened();
 	}
 
 	@Override
@@ -168,6 +183,13 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 					Log.d(TAG, "statechange from: " + prevState + " to: " + currState);
 				
 				if (currState == Reader.CARD_PRESENT) {
+					if (!enabled) {
+						if (Config.DEBUG)
+							Log.d(TAG, "tag discovered, but ExternalNfcTransceiver not enabled");
+						
+						return;
+					}
+					
 					try {
 						initCard();
 						nfcInit.tagDiscovered();

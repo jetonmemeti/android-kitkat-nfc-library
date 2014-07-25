@@ -120,6 +120,8 @@ public class NfcInitiator {
 
 	/**
 	 * Binds the NFC service to this activity and initializes the NFC features.
+	 * In order to fully initialize the NFC, call enableNFC(). Otherwise, no
+	 * messages will be exchanged.
 	 * 
 	 * @param activity
 	 *            the application's current activity (may not be null)
@@ -127,7 +129,7 @@ public class NfcInitiator {
 	public void enable(Activity activity) {
 		executorService = Executors.newSingleThreadExecutor();
 		try {
-			transceiver.enable(activity);
+			transceiver.turnOn(activity);
 		} catch (NfcLibException e) {
 			if (Config.DEBUG)
 				Log.e(TAG, "enable failed: ", e);
@@ -151,7 +153,27 @@ public class NfcInitiator {
 					Log.e(TAG, "shutdown failed: ", e);
 			}
 		}
-		transceiver.disable(activity);
+		transceiver.turnOff(activity);
+	}
+
+	/**
+	 * Enables the NFC so that messages can be exchanged. Attention: the
+	 * enable() method must be called first!
+	 */
+	public void enableNfc() {
+		transceiver.enable();
+	}
+	
+	/**
+	 * Soft disables the NFC to prevent devices such as the Samsung Galaxy Note
+	 * 3 (other devices may show the same behavior!) to restart the protocol
+	 * after having send the last message!
+	 * 
+	 * This should be called after a successful communication. Once you want to
+	 * restart the NFC capability, call enableNFC.
+	 */
+	public void disableNfc() {
+		transceiver.disable();
 	}
 
 	private boolean isResume() {
