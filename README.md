@@ -3,7 +3,7 @@ android-kitkat-nfc-library
 
 This is an Android library which offers NFC peer-to-peer functionality for Android KitKat devices irrespective of the build-in NFC controller (Broadcom or NXP).<br>
 In addition to the Android NFC functionality, this library allows sending larger messages by providing message fragmentation and reassembly. It also makes it possible to use the two-way NFC (<a href="https://developer.android.com/guide/topics/connectivity/nfc/hce.html">Host-based Card Emulation</a>) with NXP devices, since it covers connection disruptions appropriately.<br>
-Furthermore, it also supports the <a href="http://www.acs.com.hk/en/products/3/acr122u-usb-nfc-reader/">ACR122u USB NFC Reader</a>, which can be attached to an Android KitKat device. The user can't decive which NFC controller to use (the interal/build-in or the external ACR122u). If the ACR122u is plugged in, it will automatically be used once the <code>NfcInitiator</code> is initialized.
+Furthermore, it also supports the <a href="http://www.acs.com.hk/en/products/3/acr122u-usb-nfc-reader/">ACR122u USB NFC Reader</a>, which can be attached to an Android KitKat device. The user can't decide which NFC controller to use (the interal/build-in or the external ACR122u one). If the ACR122u is plugged in, it will automatically be used once the <code>NfcInitiator</code> is initialized.
 
 Prerequisites:
 --------------
