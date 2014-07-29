@@ -28,7 +28,7 @@ Installation Guidelines:
     Install two third-party libraries to your local maven repository (read <a href="http://maven.apache.org/guides/mini/guide-3rd-party-jars-local.html">here</a> how to install 3rd party JARs).
     <ul>
       <li>You need the <a href="https://github.com/mosabua/maven-android-sdk-deployer">maven-android-sdk-deployer</a>. Follow the instructions there - only platform 4.4 needs to be installed. (This library requires the <a href="http://search.maven.org/#artifactdetails%7Corg.codehaus.mojo%7Cproperties-maven-plugin%7C1.0-alpha-2%7Cmaven-plugin">properties-maven-plugin</a> to be installed to your local maven repository. Otherwise, the installation of maven-android-sdk-deployer will fail.)</li>
-      <li>You also need the Android Library for the ACR122u, even if you do not plan to use it in your application. You can download the JAR on the <a href="http://www.acs.com.hk/download-driver/2989/ACS-Unified-LIB-Android-111-P.zip">ACS website</a> or from this git repository <a href="https://github.com/jetonmemeti/android-kitkat-nfc-library/blob/master/acssmc-1.1.1.jar">here</a>.</li>
+      <li>You also need the Android Library for the ACR122u, even if you do not plan to use it in your application. You can download the JAR on the <a href="http://www.acs.com.hk/download-driver-unified/5102/ACS-LIB-Android-112-A.zip">ACS website</a> or from this git repository <a href="https://github.com/jetonmemeti/android-kitkat-nfc-library/blob/master/acssmc-1.1.1.jar">here</a>.</li>
     </ul>
   </li>
   <li>Clone this git repository.</li>
