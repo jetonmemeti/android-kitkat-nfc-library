@@ -739,4 +739,40 @@ public class TransceiverTest {
 		assertEquals(NfcInitiator.INCOMPATIBLE_VERSIONS, new String((byte[]) msg.payload()));
 	}
 	
+	@Test
+	public void testPolling_NfcInitiator() throws Exception {
+		reset();
+
+		byte[] me1 = TestUtils.getRandomBytes(20);
+		final byte[] me2 = TestUtils.getRandomBytes(20);
+		
+		final NfcInitiator transceiver = createTransceiver(me1, 250, 250, true, -1, false, -1);
+		transceiver.initNfc();
+		
+		// Start the thread before, since startPolling blocks! calling sendLater
+		// from another thread solves that problem.
+		new Thread(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					Thread.sleep(50);
+					transceiver.sendLater(me2);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+		}).start();
+		transceiver.startPolling();
+
+		futureTask.get();
+		
+		assertEquals(4, states.size());
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(3).event);
+		assertEquals(NfcEvent.MESSAGE_RECEIVED, states.get(2).event);
+		assertTrue(Arrays.equals(me2, states.get(2).response));
+		assertTrue(Arrays.equals(me1, states.get(3).response));
+
+		reset();
+	}
+	
 }

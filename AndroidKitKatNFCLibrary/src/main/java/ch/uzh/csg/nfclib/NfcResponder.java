@@ -265,11 +265,15 @@ public class NfcResponder {
 			}
 			return messageQueue.poll();
 		case POLLING:
-			NfcMessage msg = checkForData();
-			if (msg != null) {
-				return msg;
+			if (incoming.isRequest()) {
+				return new NfcMessage(Type.POLLING).response();
 			} else {
-				return new NfcMessage(Type.POLLING).request();
+				NfcMessage msg = checkForData();
+				if (msg != null) {
+					return msg;
+				} else {
+					return new NfcMessage(Type.POLLING).request();
+				}
 			}
 		default:
 			return new NfcMessage(Type.ERROR);

@@ -2,7 +2,7 @@ package ch.uzh.csg.nfclib;
 
 import java.io.IOException;
 import java.util.Deque;
-import java.util.LinkedList;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -61,7 +61,7 @@ public class NfcInitiator {
 	private boolean initDone = false;
 
 	// state
-	private final Deque<NfcMessage> messageQueue = new LinkedList<NfcMessage>();
+	private final Deque<NfcMessage> messageQueue = new ConcurrentLinkedDeque<NfcMessage>();
 	private final NfcMessageSplitter messageSplitter = new NfcMessageSplitter();
 	private NfcMessage lastMessageSent;
 	// if the task is null, it means either we did not start or we are done.
@@ -275,6 +275,66 @@ public class NfcInitiator {
 		initDone = false;
 		eventHandler.handleMessage(event, null);
 	}
+	
+	private volatile byte[] data;
+	private volatile boolean pollingStarted = false;
+	
+	/**
+	 * Starts polling to keep the NFC connection up. To send a message once it
+	 * is ready call sendLater from a different thread, since this is blocking.
+	 * 
+	 * This solves the problem with the Samsung Galaxy Note 3 and other devices,
+	 * which are unable to send messages after the connection has been idle for
+	 * a given time. This occurred when doing the server call.
+	 * 
+	 * @throws IllegalArgumentException
+	 *             (e.g., not initialized)
+	 */
+	public void startPolling() throws IllegalArgumentException {
+		if (!initDone)
+			throw new IllegalArgumentException("init not done");
+		
+		if (isResume() && !messageQueue.isEmpty())
+			throw new IllegalArgumentException("previous message did not finish, cannot send now!");
+		
+		if (pollingStarted || data != null)
+			throw new IllegalArgumentException("polling has already been requested once");
+		
+		messageQueue.offer(new NfcMessage(Type.POLLING).request());
+		
+		if (Config.DEBUG)
+			Log.d(TAG, "started polling");
+		
+		if (task == null || !task.isActive()) {
+			task = new TimeoutTask();
+			executorService.submit(task);
+		}
+		
+		pollingStarted = true;
+		transceiveLoop(false);
+	}
+	
+	/**
+	 * If startPolling has been called to keep the NFC connection up, this
+	 * provides the message which should be sent.
+	 * 
+	 * @param bytes
+	 *            the bytes to be sent over NFC
+	 * @throws IllegalArgumentException
+	 *             (e.g., not initialized)
+	 */
+	public void sendLater(byte[] bytes) throws IllegalArgumentException {
+		if (bytes == null || bytes.length == 0)
+			throw new IllegalArgumentException(NULL_ARGUMENT);
+		
+		if (!initDone)
+			throw new IllegalArgumentException("init not done");
+
+		if (!pollingStarted)
+			throw new IllegalArgumentException("polling has not been requested, therefore not possible to send later");
+		
+		data = bytes;
+	}
 
 	/**
 	 * Sends any byte message to the NFC communication partner and returns the
@@ -300,15 +360,18 @@ public class NfcInitiator {
 		if (bytes == null || bytes.length == 0) {
 			throw new IllegalArgumentException(NULL_ARGUMENT);
 		}
-
-		if (isResume() && !messageQueue.isEmpty()) {
-			throw new IllegalArgumentException("previous message did not finish, cannot send now!");
-		}
-
+		
 		if (!initDone) {
 			throw new IllegalArgumentException("init not done");
 		}
 
+		if (isResume() && !messageQueue.isEmpty()) {
+			throw new IllegalArgumentException("previous message did not finish, cannot send now!");
+		}
+		
+		if (pollingStarted)
+			throw new IllegalArgumentException("you cannot transceive any message while pollling - use send later instead");
+			
 		/*
 		 * hint the gc that now is a good time to cleanup. Its better to cleanup
 		 * before we start the timeout task
@@ -420,8 +483,28 @@ public class NfcInitiator {
 			messageQueue.offer(toSend);
 			return true;
 		} else if (response.type() == Type.POLLING) {
-			NfcMessage toSend = new NfcMessage(Type.POLLING).response();
-			messageQueue.offer(toSend);
+			NfcMessage toSend;
+			if (response.isRequest()) {
+				toSend = new NfcMessage(Type.POLLING).response();
+				messageQueue.offer(toSend);
+			} else {
+				if (data == null) {
+					toSend = new NfcMessage(Type.POLLING).request();
+					messageQueue.offer(toSend);
+				} else {
+					for (NfcMessage msg : messageSplitter.getFragments(data)) {
+						messageQueue.offer(msg);
+					}
+					
+					if (Config.DEBUG) {
+						Log.d(TAG, "terminating polling");
+						Log.d(TAG, "writing: " + data.length + " bytes, " + messageQueue.size() + " fragments");
+					}
+					
+					data = null;
+					pollingStarted = false;
+				}
+			}
 			return true;
 		} else if (response.type() != Type.GET_NEXT_FRAGMENT) {
 			done();
@@ -437,6 +520,9 @@ public class NfcInitiator {
 		task.shutdown();
 		messageSplitter.clear();
 		messageQueue.clear();
+		
+		data = null;
+		pollingStarted = false;
 	}
 
 	private boolean validateSequence(final NfcMessage request, final NfcMessage response) {
@@ -462,7 +548,7 @@ public class NfcInitiator {
 
 	private class TimeoutTask implements Runnable {
 		private final CountDownLatch latch = new CountDownLatch(1);
-		private long lastAcitivity;
+		private long lastActivity;
 
 		public TimeoutTask() {
 			active();
@@ -474,7 +560,7 @@ public class NfcInitiator {
 
 		public void active() {
 			synchronized (this) {
-				lastAcitivity = System.currentTimeMillis();
+				lastActivity = System.currentTimeMillis();
 			}
 		}
 
@@ -490,7 +576,7 @@ public class NfcInitiator {
 					final long now = System.currentTimeMillis();
 					final long idle;
 					synchronized (this) {
-						idle = now - lastAcitivity;
+						idle = now - lastActivity;
 					}
 					if (idle > CONNECTION_TIMEOUT) {
 						if (Config.DEBUG)
