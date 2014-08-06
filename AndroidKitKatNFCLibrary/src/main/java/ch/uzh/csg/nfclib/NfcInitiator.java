@@ -237,7 +237,6 @@ public class NfcInitiator {
 				if (Config.DEBUG)
 					Log.d(TAG, "resume");
 				
-				//TODO: what to do with lastMessage received?
 				transceiveLoop(true);
 			} else {
 				if (Config.DEBUG)
@@ -528,7 +527,7 @@ public class NfcInitiator {
 	}
 
 	private boolean validateSequence(final NfcMessage request, final NfcMessage response) {
-		final boolean check = response.check(request);
+		boolean check = request.sequenceNumber() == response.sequenceNumber();
 		if (!check) {
 			if (Config.DEBUG)
 				Log.e(TAG, "sequence number mismatch, expected " + ((request.sequenceNumber() + 1) % 255) + ", but was: " + response.sequenceNumber());

@@ -746,7 +746,7 @@ public class TransceiverTest {
 		byte[] me1 = TestUtils.getRandomBytes(20);
 		final byte[] me2 = TestUtils.getRandomBytes(20);
 		
-		final NfcInitiator transceiver = createTransceiver(me1, 250, 250, true, -1, false, -1);
+		final NfcInitiator transceiver = createTransceiver(me1, 1000, 1000, true, -1, false, -1);
 		transceiver.initNfc();
 		
 		// Start the thread before, since startPolling blocks! calling sendLater
@@ -755,7 +755,7 @@ public class TransceiverTest {
 			@Override
 			public void run() {
 				try {
-					Thread.sleep(20);
+					Thread.sleep(50);
 					transceiver.sendLater(me2);
 				} catch (InterruptedException e) {
 					e.printStackTrace();

@@ -115,6 +115,43 @@ public class NfcResponder {
 		NfcMessage inputMessage = new NfcMessage(bytes);
 		NfcMessage outputMessage = null;
 		
+		if (inputMessage.isReadBinary()) {
+			if (Config.DEBUG)
+				Log.d(TAG, "keep alive message");
+			
+			outputMessage = new NfcMessage(Type.READ_BINARY);
+			// no sequence number in here
+			return outputMessage.bytes();
+		} else if (inputMessage.isSelectAidApdu() || inputMessage.type() == Type.USER_ID) {
+			return handleHandshake(inputMessage);
+		} else {
+			if (Config.DEBUG)
+				Log.d(TAG, "regular message");
+
+			boolean check = inputMessage.check(lastMessageReceived);
+			boolean repeat = inputMessage.repeatLast(lastMessageReceived);
+			lastMessageReceived = inputMessage;
+			
+			if (!check && !repeat) {
+				if (Config.DEBUG)
+					Log.e(TAG, "sequence number mismatch " + inputMessage.sequenceNumber() + " / " + (lastMessageReceived == null ? 0 : lastMessageReceived.sequenceNumber()));
+				
+				eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcInitiator.UNEXPECTED_ERROR);
+				outputMessage = new NfcMessage(Type.ERROR);
+				return prepareWrite(outputMessage);
+			}
+			if (!check && repeat) {
+				return lastMessageSent.bytes();
+			}
+			// eventHandler fired in handleRequest
+			outputMessage = handleRequest(inputMessage, sendLater);
+			
+			return prepareWrite(outputMessage);
+		}
+	}
+
+	private byte[] handleHandshake(NfcMessage inputMessage) {
+		// no sequence number in handshake
 		if (inputMessage.isSelectAidApdu()) {
 			/*
 			 * The size of the returned message is specified in NfcTransceiver
@@ -123,66 +160,45 @@ public class NfcResponder {
 			if (Config.DEBUG)
 				Log.d(TAG, "AID selected");
 			
-			outputMessage = new NfcMessage(Type.AID).response();
-			// no sequence number in handshake
-			return outputMessage.bytes();
-		} else if (inputMessage.isReadBinary()) {
-			if (Config.DEBUG)
-				Log.d(TAG, "keep alive message");
-			
-			outputMessage = new NfcMessage(Type.READ_BINARY);
-			// no sequence number in here
-			return outputMessage.bytes();
-		} else {
-			if (Config.DEBUG)
-				Log.d(TAG, "regular message");
-
-			// check sequence if we are not a user_id message. As this message
-			// resets the sequence numbers
-			boolean isUserMessage = inputMessage.type() == Type.USER_ID;
-			if (isUserMessage) {
-				if (inputMessage.version() > NfcMessage.getSupportedVersion()) {
-					if (Config.DEBUG)
-						Log.d(TAG, "excepted NfcMessage version "+NfcMessage.getSupportedVersion()+" but was "+inputMessage.version());
-					
-					eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcInitiator.INCOMPATIBLE_VERSIONS);
-					
-					//TODO: send the complete string??
-					outputMessage = new NfcMessage(Type.ERROR).payload(NfcInitiator.INCOMPATIBLE_VERSIONS.getBytes());
-					return prepareWrite(outputMessage, true);
-				}
-			} else {
-				boolean check = inputMessage.check(lastMessageReceived);
-				boolean repeat = inputMessage.repeatLast(lastMessageReceived);
-				lastMessageReceived = inputMessage;
+			return new NfcMessage(Type.AID).response().bytes();
+		} else if (inputMessage.type() == Type.USER_ID) {
+			if (inputMessage.version() > NfcMessage.getSupportedVersion()) {
+				if (Config.DEBUG)
+					Log.d(TAG, "excepted NfcMessage version "+NfcMessage.getSupportedVersion()+" but was "+inputMessage.version());
 				
-				if (!check && !repeat) {
-					if (Config.DEBUG)
-						Log.e(TAG, "sequence number mismatch " + inputMessage.sequenceNumber() + " / " + (lastMessageReceived == null ? 0 : lastMessageReceived.sequenceNumber()));
-					
-					eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcInitiator.UNEXPECTED_ERROR);
-					outputMessage = new NfcMessage(Type.ERROR);
-					return prepareWrite(outputMessage, true);
-				}
-				if (!check && repeat) {
-					return lastMessageSent.bytes();
-				}
+				eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcInitiator.INCOMPATIBLE_VERSIONS);
+				
+				//TODO: send the complete string??
+				return new NfcMessage(Type.ERROR).payload(NfcInitiator.INCOMPATIBLE_VERSIONS.getBytes()).bytes();
 			}
-			// eventHandler fired in handleRequest
-			outputMessage = handleRequest(inputMessage, sendLater);
 			
-			// do not increase sequence number for user_id as this belongs to
-			// the handshake
-			return prepareWrite(outputMessage, !isUserMessage);
+			// now we have the user id, get it
+			long newUserId = Utils.byteArrayToLong(inputMessage.payload(), 0);
+			int maxFragLen = Utils.byteArrayToInt(inputMessage.payload(), 8);
+			
+			messageSplitter.maxTransceiveLength(maxFragLen);
+			if (inputMessage.isResume() && newUserId == userIdReceived) {
+				if (Config.DEBUG)
+					Log.d(TAG, "resume");
+				
+				return new NfcMessage(Type.DEFAULT).resume().bytes();
+			} else {
+				if (Config.DEBUG)
+					Log.d(TAG, "new session (no resume)");
+				
+				userIdReceived = newUserId;
+				lastMessageSent = null;
+				lastMessageReceived = null;
+				eventHandler.handleMessage(NfcEvent.INITIALIZED, Long.valueOf(userIdReceived));
+				resetStates();
+				return new NfcMessage(Type.USER_ID).bytes();
+			}
 		}
+		return null;
 	}
 
-	private byte[] prepareWrite(NfcMessage outputMessage, boolean increaseSeq) {
-		if (increaseSeq) {
-			lastMessageSent = outputMessage.sequenceNumber(lastMessageSent);
-		} else {
-			lastMessageSent = outputMessage;
-		}
+	private byte[] prepareWrite(NfcMessage outputMessage) {
+		lastMessageSent = outputMessage.sequenceNumber(lastMessageSent);
 		byte[] retVal = outputMessage.bytes();
 		
 		if (Config.DEBUG)
@@ -211,32 +227,6 @@ public class NfcResponder {
 		boolean hasMoreFragments = incoming.hasMoreFragments();
 
 		switch (incoming.type()) {
-		case USER_ID:
-			// now we have the user id, get it
-			long newUserId = Utils.byteArrayToLong(incoming.payload(), 0);
-			int maxFragLen = Utils.byteArrayToInt(incoming.payload(), 8);
-			
-			//TODO: implement maxfraglen here as well and send it to the nfcinitiator? he must handle that then!
-			
-			messageSplitter.maxTransceiveLength(maxFragLen);
-			if (incoming.isResume() && newUserId == userIdReceived) {
-				if (Config.DEBUG)
-					Log.d(TAG, "resume");
-				
-				//TODO: this is not used at the initiator side!
-				return lastMessageSent.resume();
-//				return new NfcMessage(Type.DEFAULT).resume().sequenceNumber(lastMessageSent.sequenceNumber());
-			} else {
-				if (Config.DEBUG)
-					Log.d(TAG, "new session (no resume)");
-				
-				userIdReceived = newUserId;
-				lastMessageSent = null;
-				lastMessageReceived = null;
-				eventHandler.handleMessage(NfcEvent.INITIALIZED, Long.valueOf(userIdReceived));
-				resetStates();
-				return new NfcMessage(Type.USER_ID);
-			}
 		case DEFAULT:
 			if (hasMoreFragments) {
 				messageSplitter.reassemble(incoming);
