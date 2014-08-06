@@ -42,7 +42,6 @@ public class NfcResponder {
 	private long userIdReceived = 0;
 	private NfcMessage lastMessageSent;
 	private NfcMessage lastMessageReceived;
-	private long timeInitMessageReceived;
 
 	private ExecutorService executorService = null;
 	private TimeoutTask task;
@@ -124,7 +123,6 @@ public class NfcResponder {
 			if (Config.DEBUG)
 				Log.d(TAG, "AID selected");
 			
-			timeInitMessageReceived = System.currentTimeMillis();
 			outputMessage = new NfcMessage(Type.AID).response();
 			// no sequence number in handshake
 			return outputMessage.bytes();
@@ -221,12 +219,13 @@ public class NfcResponder {
 			//TODO: implement maxfraglen here as well and send it to the nfcinitiator? he must handle that then!
 			
 			messageSplitter.maxTransceiveLength(maxFragLen);
-			if (incoming.isResume() && newUserId == userIdReceived && (System.currentTimeMillis() - timeInitMessageReceived < NfcInitiator.CONNECTION_TIMEOUT)) {
+			if (incoming.isResume() && newUserId == userIdReceived) {
 				if (Config.DEBUG)
 					Log.d(TAG, "resume");
 				
 				//TODO: this is not used at the initiator side!
 				return lastMessageSent.resume();
+//				return new NfcMessage(Type.DEFAULT).resume().sequenceNumber(lastMessageSent.sequenceNumber());
 			} else {
 				if (Config.DEBUG)
 					Log.d(TAG, "new session (no resume)");
@@ -355,7 +354,6 @@ public class NfcResponder {
 						waitTime = NfcInitiator.CONNECTION_TIMEOUT - idle;
 					}
 				}
-
 			} catch (Throwable t) {
 				t.printStackTrace();
 			}
