@@ -700,7 +700,7 @@ public class TransceiverTest {
 		
 		NfcResponder c = mock(NfcResponder.class);
 		when(c.processIncomingData(any(byte[].class)))
-			.thenReturn(new NfcMessage(Type.AID_SELECTED).response().bytes())
+			.thenReturn(new NfcMessage(Type.AID).response().bytes())
 			.thenReturn(m2.bytes());
 		
 		NfcInitiator transceiver = createTransceiver(c);
@@ -755,7 +755,7 @@ public class TransceiverTest {
 			@Override
 			public void run() {
 				try {
-					Thread.sleep(50);
+					Thread.sleep(20);
 					transceiver.sendLater(me2);
 				} catch (InterruptedException e) {
 					e.printStackTrace();

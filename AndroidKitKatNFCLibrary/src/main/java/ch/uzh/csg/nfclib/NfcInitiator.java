@@ -33,7 +33,7 @@ import ch.uzh.csg.nfclib.utils.Utils;
  * 
  * Packet flow (handshake):
  * sender -> recipient
- * APDU ->
+ * AID ->
  * <- AID_SELECTED
  * -> USER_ID
  * <- USER_ID
@@ -195,7 +195,7 @@ public class NfcInitiator {
 			if (Config.DEBUG)
 				Log.d(TAG, "init NFC");
 
-			NfcMessage initMessage = new NfcMessage(Type.AID_SELECTED).request();
+			NfcMessage initMessage = new NfcMessage(Type.AID).request();
 			// no sequence number here, as this is a special message
 			NfcMessage response = transceiver.write(initMessage);
 			// --> here we can get an exception
@@ -232,10 +232,13 @@ public class NfcInitiator {
 				return;
 			}
 
+			//TODO: check + run tests!
+//			if (responseUserId.isResume()) {
 			if (isResume()) {
 				if (Config.DEBUG)
 					Log.d(TAG, "resume");
 				
+				//TODO: what to do with lastMessage received?
 				transceiveLoop(true);
 			} else {
 				if (Config.DEBUG)

@@ -125,7 +125,7 @@ public class NfcResponder {
 				Log.d(TAG, "AID selected");
 			
 			timeInitMessageReceived = System.currentTimeMillis();
-			outputMessage = new NfcMessage(Type.AID_SELECTED).response();
+			outputMessage = new NfcMessage(Type.AID).response();
 			// no sequence number in handshake
 			return outputMessage.bytes();
 		} else if (inputMessage.isReadBinary()) {
@@ -218,11 +218,14 @@ public class NfcResponder {
 			long newUserId = Utils.byteArrayToLong(incoming.payload(), 0);
 			int maxFragLen = Utils.byteArrayToInt(incoming.payload(), 8);
 			
+			//TODO: implement maxfraglen here as well and send it to the nfcinitiator? he must handle that then!
+			
 			messageSplitter.maxTransceiveLength(maxFragLen);
 			if (incoming.isResume() && newUserId == userIdReceived && (System.currentTimeMillis() - timeInitMessageReceived < NfcInitiator.CONNECTION_TIMEOUT)) {
 				if (Config.DEBUG)
 					Log.d(TAG, "resume");
 				
+				//TODO: this is not used at the initiator side!
 				return lastMessageSent.resume();
 			} else {
 				if (Config.DEBUG)

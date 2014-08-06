@@ -49,7 +49,7 @@ public class NfcMessage {
 
 	// messages, uses 3 bits at most
 	public enum Type {
-		DEFAULT, ERROR, AID_SELECTED, GET_NEXT_FRAGMENT, USER_ID, READ_BINARY, POLLING, UNUSED;
+		DEFAULT, ERROR, AID, GET_NEXT_FRAGMENT, USER_ID, READ_BINARY, POLLING, UNUSED;
 	}
 
 	// flags
@@ -84,7 +84,7 @@ public class NfcMessage {
 			header = header | (VERSION << 3);
 		} else if (input[0] == CLA_INS_P1_P2[0] && input[1] == CLA_INS_P1_P2[1]) {
 			// we got the initial handshake
-			header = Type.AID_SELECTED.ordinal();
+			header = Type.AID.ordinal();
 			header = header | (VERSION << 3);
 		} else {
 			// this is now a custom message
@@ -324,7 +324,7 @@ public class NfcMessage {
 	 */
 	public boolean isSelectAidApdu() {
 		// does not matter if request or response
-		return type() == Type.AID_SELECTED;
+		return type() == Type.AID;
 	}
 
 	/**
