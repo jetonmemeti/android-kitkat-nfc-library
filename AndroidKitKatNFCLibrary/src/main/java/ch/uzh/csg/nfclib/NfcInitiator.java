@@ -232,9 +232,7 @@ public class NfcInitiator {
 				return;
 			}
 
-			//TODO: check + run tests!
-//			if (responseUserId.isResume()) {
-			if (isResume()) {
+			if (responseUserId.isResume()) {
 				if (Config.DEBUG)
 					Log.d(TAG, "resume");
 				
