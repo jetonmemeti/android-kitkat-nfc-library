@@ -219,7 +219,8 @@ public class NfcInitiator {
 			byte[] sendFragLen = Utils.intToByteArray(transceiver.maxLen());
 			byte[] merged = Utils.merge(sendUserId, sendFragLen);
 
-			NfcMessage msg = new NfcMessage(NfcMessage.Type.USER_ID).payload(merged).resume(isResume());
+			boolean resumeRequested = isResume();
+			NfcMessage msg = new NfcMessage(NfcMessage.Type.USER_ID).payload(merged).resume(resumeRequested);
 			// no sequence number, this is considered as part of the handshake
 			NfcMessage responseUserId = transceiver.write(msg);
 			// --> here we can get an exception
@@ -232,7 +233,7 @@ public class NfcInitiator {
 				return;
 			}
 
-			if (responseUserId.isResume()) {
+			if (resumeRequested && responseUserId.isResume()) {
 				if (Config.DEBUG)
 					Log.d(TAG, "resume");
 				
