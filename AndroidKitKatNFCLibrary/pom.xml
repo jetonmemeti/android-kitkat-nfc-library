@@ -40,7 +40,7 @@
 			<scope>test</scope>
 		</dependency>
 		
-		<!-- This is used to access Android Resources (such as the HCE and IsoDep) from a Java Pro \ 
+		<!-- This is used to access Android Resources (such as the HCE and IsoDep) from a Java Project \ 
 	    	install with https://github.com/mosabua/maven-android-sdk-deployer -->
 		<dependency>
 			<groupId>android</groupId>
