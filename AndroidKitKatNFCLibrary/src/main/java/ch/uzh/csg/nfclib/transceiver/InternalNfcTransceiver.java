@@ -30,12 +30,6 @@ public class InternalNfcTransceiver implements ReaderCallback, INfcTransceiver {
 	private static final String TAG = "ch.uzh.csg.nfclib.transceiver.InternalNfcTransceiver";
 
 	/*
-	 * TODO: NXP has limit of 245, broadcom not, make distinction (following
-	 * link did not help
-	 * http://stackoverflow.com/questions/15775832/exclude-non-
-	 * nxp-android-phones-with-nfc-like-the-nexus-4-10/15833191#15833191)
-	 */
-	/*
 	 * NXP chip supports max 255 bytes (problems might arise sometimes if
 	 * sending exactly 255 bytes)
 	 */

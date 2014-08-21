@@ -167,8 +167,6 @@ public class NfcResponder {
 					Log.d(TAG, "excepted NfcMessage version "+NfcMessage.getSupportedVersion()+" but was "+inputMessage.version());
 				
 				eventHandler.handleMessage(NfcEvent.FATAL_ERROR, NfcInitiator.INCOMPATIBLE_VERSIONS);
-				
-				//TODO: send the complete string??
 				return new NfcMessage(Type.ERROR).payload(NfcInitiator.INCOMPATIBLE_VERSIONS.getBytes()).bytes();
 			}
 			
