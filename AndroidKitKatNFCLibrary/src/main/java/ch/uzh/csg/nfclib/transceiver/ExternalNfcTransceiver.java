@@ -212,6 +212,12 @@ public class ExternalNfcTransceiver implements INfcTransceiver {
 	private void initCard() throws ReaderException {
 		reader.power(0, Reader.CARD_WARM_RESET);
 		reader.setProtocol(0, Reader.PROTOCOL_T0 | Reader.PROTOCOL_T1);
+		// Disable the standard buzzer when a tag is detected (Section 6.7). It sounds
+		// immediately after placing a tag resulting in people lifting the tag off before
+		// we've had a chance to read the ID.
+		byte[] sendBuffer={(byte)0xFF, (byte)0x00, (byte)0x52, (byte)0x00, (byte)0x00};
+		byte[] recvBuffer=new byte[8];
+		reader.transmit(0, sendBuffer, sendBuffer.length, recvBuffer, recvBuffer.length);
 	}
 
 	private static UsbDevice externalReaderAttached(Activity activity) {
